@@ -17,6 +17,13 @@ import pytest
 
 pytest_plugins = ["pytest_homeassistant_custom_component"]
 
+# Enable HA's event-loop protection like a real installation does, so
+# blocking I/O inside the loop is reported ("Detected blocking call ...").
+from homeassistant import block_async_io  # noqa: E402
+
+block_async_io._IN_TESTS = False  # also check open/scandir/listdir
+block_async_io.enable()
+
 # device type byte -> panel size (pypixelcolor DEVICE_TYPE_MAP / LED_SIZE_MAP)
 TYPE_96x16 = 132
 CONNECT_DELAY = 0.3
