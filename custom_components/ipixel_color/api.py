@@ -1744,6 +1744,121 @@ class iPIXELAPI:
             _LOGGER.error("Error displaying border animation: %s", err)
             return False
 
+    # ------------------------------------------------------------------
+    # MDI icons and composed layouts (from tigers75/ha-ipixel-color)
+    # ------------------------------------------------------------------
+    async def send_mdi_icon(
+        self,
+        icon: str,
+        color: str = "ffffff",
+        bg_color: str = "000000",
+        scale: int = 100,
+        save_slot: int = 0,
+    ) -> bool:
+        """Render a Material Design Icon centered on the panel and display it.
+
+        The SVG is downloaded from the jsDelivr mirror of @mdi/svg (pinned
+        version) and rasterized with resvg_py.
+        """
+        from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+        from .device.mdi_icon import build_mdi_icon_png
+
+        try:
+            info = await self._get_device_info()
+            png = await build_mdi_icon_png(
+                icon=icon,
+                session=async_get_clientsession(self._hass),
+                canvas_width=info.width,
+                canvas_height=info.height,
+                color_hex=color,
+                bg_color_hex=bg_color,
+                scale_percent=scale,
+            )
+            plan = make_image_plan(
+                image_bytes=png,
+                file_extension=".png",
+                resize_method="crop",
+                device_info=info,
+                save_slot=save_slot,
+            )
+            result = await self._bluetooth.send_plan(plan)
+            if not result.success:
+                _LOGGER.error("Failed to send MDI icon '%s': %s", icon, result.message)
+            return result.success
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.error("Error sending MDI icon '%s': %s", icon, err)
+            return False
+
+    async def send_layout(
+        self,
+        icons: list[dict] | None = None,
+        texts: list[dict] | None = None,
+        image_path: str | None = None,
+        image_x: int = 0,
+        image_y: int = 0,
+        image_width: int | None = None,
+        image_height: int | None = None,
+        scroll_step: int = 2,
+        scroll_frame_ms: int = 80,
+        scroll_gap: int = 16,
+        bg_color: str = "000000",
+        save_slot: int = 0,
+    ) -> bool:
+        """Compose up to 4 MDI icons, one image and up to 4 texts and display it.
+
+        Blinking or scrolling elements produce an animated GIF, otherwise a
+        PNG. Positions are top-left corners in panel pixels.
+        """
+        from pathlib import Path
+
+        from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+        from .device.composer import build_layout_media
+
+        try:
+            info = await self._get_device_info()
+            image_bytes = None
+            if image_path:
+                if not self._hass.config.is_allowed_path(image_path):
+                    _LOGGER.error(
+                        "image_path %s is not in allowlist_external_dirs", image_path
+                    )
+                    return False
+                image_bytes = await self._hass.async_add_executor_job(
+                    Path(image_path).read_bytes
+                )
+            media, file_ext = await build_layout_media(
+                canvas_width=info.width,
+                canvas_height=info.height,
+                session=async_get_clientsession(self._hass),
+                bg_color_hex=bg_color,
+                icons=icons,
+                image_bytes=image_bytes,
+                image_x=image_x,
+                image_y=image_y,
+                image_width=image_width,
+                image_height=image_height,
+                texts=texts,
+                scroll_step=scroll_step,
+                scroll_frame_ms=scroll_frame_ms,
+                scroll_gap=scroll_gap,
+            )
+            plan = make_image_plan(
+                image_bytes=media,
+                file_extension=file_ext,
+                resize_method="crop",
+                device_info=info,
+                save_slot=save_slot,
+            )
+            result = await self._bluetooth.send_plan(plan)
+            if not result.success:
+                _LOGGER.error("Failed to send layout: %s", result.message)
+            return result.success
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.error("Error sending layout: %s", err)
+            return False
+
     async def display_image_url_bytes(
         self,
         image_bytes: bytes,

@@ -1322,10 +1322,94 @@ async def handle_send_rhythm_eq(call: ServiceCall) -> None:
 
 
 @callback
+# ---------------------------------------------------------------------------
+# MDI icons and composed layouts (from tigers75/ha-ipixel-color)
+# ---------------------------------------------------------------------------
+
+def _rgb_to_hex(value, default: str = "ffffff") -> str:
+    """Accept [r, g, b] (color_rgb selector) or a hex string."""
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.lstrip("#")
+    r, g, b = (int(v) for v in value)
+    return f"{r:02x}{g:02x}{b:02x}"
+
+
+async def handle_display_mdi_icon(call: ServiceCall) -> None:
+    """Handle display_mdi_icon service call."""
+    api = get_api(call)
+    await api.send_mdi_icon(
+        icon=call.data["icon"],
+        color=_rgb_to_hex(call.data.get("color"), "ffffff"),
+        bg_color=_rgb_to_hex(call.data.get("bg_color"), "000000"),
+        scale=int(call.data.get("scale", 100)),
+        save_slot=int(call.data.get("save_slot", 0)),
+    )
+
+
+def _layout_items(call: ServiceCall, key: str, prefix: str, fields: dict) -> list[dict] | None:
+    """Use the list field if given, else build one item from the flat fields."""
+    items = call.data.get(key)
+    if items:
+        out = []
+        for item in list(items)[:4]:
+            item = dict(item)
+            if "color" in item and "color_hex" not in item:
+                item["color_hex"] = _rgb_to_hex(item.pop("color"))
+            out.append(item)
+        return out
+    if not call.data.get(prefix):
+        return None
+    item = {fields.get(prefix, prefix): call.data[prefix]}
+    for src, dst in fields.items():
+        if src != prefix and src in call.data:
+            item[dst] = call.data[src]
+    if f"{prefix}_color" in call.data:
+        item["color_hex"] = _rgb_to_hex(call.data[f"{prefix}_color"])
+    return [item]
+
+
+async def handle_display_layout(call: ServiceCall) -> None:
+    """Handle display_layout service call."""
+    api = get_api(call)
+    icons = _layout_items(call, "icons", "icon", {
+        "icon": "icon", "icon_x": "x", "icon_y": "y", "icon_size": "size",
+        "icon_blink": "blink", "icon_blink_interval_ms": "blink_interval_ms",
+    })
+    texts = _layout_items(call, "texts", "text", {
+        "text": "text", "text_x": "x", "text_y": "y", "text_size": "size",
+        "text_font": "font", "text_wrap": "wrap", "text_align": "align",
+        "text_line_spacing": "line_spacing", "text_scroll": "scroll",
+        "text_blink": "blink", "text_blink_interval_ms": "blink_interval_ms",
+    })
+    if not icons and not texts and not call.data.get("image_path"):
+        _LOGGER.warning("display_layout: nothing to show (no icon, text or image)")
+        return
+    await api.send_layout(
+        icons=icons,
+        texts=texts,
+        image_path=call.data.get("image_path"),
+        image_x=int(call.data.get("image_x", 0)),
+        image_y=int(call.data.get("image_y", 0)),
+        image_width=call.data.get("image_width"),
+        image_height=call.data.get("image_height"),
+        scroll_step=int(call.data.get("scroll_step", 2)),
+        scroll_frame_ms=int(call.data.get("scroll_frame_ms", 80)),
+        scroll_gap=int(call.data.get("scroll_gap", 16)),
+        bg_color=_rgb_to_hex(call.data.get("bg_color"), "000000"),
+        save_slot=int(call.data.get("save_slot", 0)),
+    )
+
+
 def async_setup_services(hass: HomeAssistant) -> None:
     # Deliberately NOT registered in this fork (destructive / can lock the
     # panel): set_default_mode, erase_data, send_raw_command, set_password,
     # verify_password. The API methods remain for development use.
+    if not hass.services.has_service(DOMAIN, "display_mdi_icon"):
+        hass.services.async_register(DOMAIN, "display_mdi_icon", handle_display_mdi_icon)
+    if not hass.services.has_service(DOMAIN, "display_layout"):
+        hass.services.async_register(DOMAIN, "display_layout", handle_display_layout)
     """Register iPIXEL services."""
 
     # Register all services if not already registered

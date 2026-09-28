@@ -1720,3 +1720,341 @@ send_rhythm_eq:
       example: "128,200,255,180,150,120,100,80,60,40,20"
       selector:
         text:
+
+# --- MDI icons and layouts (from tigers75/ha-ipixel-color) ---
+display_mdi_icon:
+  name: Display MDI Icon
+  description: Show a Material Design Icon (as used in Home Assistant) centered on the panel. Icons are
+    downloaded from the jsDelivr mirror of @mdi/svg.
+  fields:
+    device_id: &id001
+      name: Device
+      description: Target iPIXEL device
+      required: true
+      selector:
+        device:
+          integration: ipixel_color
+    icon:
+      name: Icon
+      description: MDI icon, e.g. mdi:weather-sunny
+      required: true
+      selector:
+        icon: null
+    color:
+      name: Icon Color
+      description: Icon color
+      required: false
+      default:
+      - 255
+      - 255
+      - 255
+      selector:
+        color_rgb: null
+    bg_color:
+      name: Background Color
+      description: Background color
+      required: false
+      default:
+      - 0
+      - 0
+      - 0
+      selector:
+        color_rgb: null
+    scale:
+      name: Icon Size
+      description: Icon size as % of the panel's smaller side (100 = full height)
+      required: false
+      default: 100
+      selector:
+        number:
+          min: 10
+          max: 100
+          mode: slider
+          unit_of_measurement: '%'
+    save_slot:
+      name: Save Slot
+      description: Save to device slot (0 = don't save)
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 10
+display_layout:
+  name: Display Layout
+  description: Compose up to 4 MDI icons, one image and up to 4 texts at free positions into one picture.
+    Blinking or scrolling elements produce an animated GIF.
+  fields:
+    device_id: *id001
+    icon:
+      name: Icon
+      description: MDI icon, e.g. mdi:weather-sunny
+      required: false
+      selector:
+        icon: null
+    icon_x:
+      name: Icon X
+      description: Icon X position (top-left), pixels
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+    icon_y:
+      name: Icon Y
+      description: Icon Y position (top-left), pixels
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+    icon_size:
+      name: Icon Size
+      description: 'Icon size in pixels (square). Default: panel height'
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 999
+    icon_color:
+      name: Icon Color
+      description: Icon color
+      required: false
+      default:
+      - 255
+      - 255
+      - 255
+      selector:
+        color_rgb: null
+    icon_blink:
+      name: Icon Blink
+      description: Blink the icon
+      required: false
+      default: false
+      selector:
+        boolean: null
+    icon_blink_interval_ms:
+      name: Icon Blink Interval
+      description: Duration of each blink state (ms)
+      required: false
+      default: 500
+      selector:
+        number:
+          min: 50
+          max: 5000
+    icons:
+      name: Icons (multiple)
+      description: YAML list of up to 4 icons (icon, x, y, size, color_hex, blink, blink_interval_ms).
+        Overrides the single icon fields.
+      required: false
+      example: "- icon: \"mdi:weather-sunny\"\n  x: 0\n  y: 0\n  size: 16\n- icon: \"mdi:water-alert\"\
+        \n  x: 20\n  y: 0\n  size: 16\n  blink: true\n  blink_interval_ms: 300\n"
+      selector:
+        object: null
+    image_path:
+      name: Image Path
+      description: Absolute path of an image/GIF (first frame) readable by HA, must be in allowlist_external_dirs,
+        e.g. /config/www/logo.png
+      required: false
+      example: /config/www/logo.png
+      selector:
+        text: null
+    image_x:
+      name: Image X
+      description: Image X position, pixels
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+    image_y:
+      name: Image Y
+      description: Image Y position, pixels
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+    image_width:
+      name: Image Width
+      description: Resize image to this width
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 999
+    image_height:
+      name: Image Height
+      description: Resize image to this height
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 999
+    text:
+      name: Text
+      description: Text ('\n' forces a line break)
+      required: false
+      selector:
+        text: null
+    text_x:
+      name: Text X
+      description: Text X position, pixels
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+    text_y:
+      name: Text Y
+      description: Text Y position, pixels
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+    text_size:
+      name: Text Size
+      description: Font size in pixels (fractional allowed)
+      required: false
+      default: 6
+      selector:
+        number:
+          min: 1
+          max: 64
+          step: 0.5
+    text_font:
+      name: Text Font
+      description: Bundled pixel font
+      required: false
+      selector:
+        select:
+          options:
+          - 3x5-de
+          - 5x5
+          - 7x5
+          - Lepidos
+          - OpenSans-Light
+          - WP7xn
+    text_color:
+      name: Text Color
+      description: Text color
+      required: false
+      default:
+      - 255
+      - 255
+      - 255
+      selector:
+        color_rgb: null
+    text_wrap:
+      name: Text Wrap
+      description: Word-wrap at the right edge
+      required: false
+      default: true
+      selector:
+        boolean: null
+    text_align:
+      name: Text Align
+      description: Alignment within the text block
+      required: false
+      default: left
+      selector:
+        select:
+          options:
+          - left
+          - right
+          - center
+    text_line_spacing:
+      name: Text Line Spacing
+      description: Extra pixels between lines
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 0
+          max: 20
+    text_scroll:
+      name: Text Scroll
+      description: Scroll text that does not fit (animated GIF)
+      required: false
+      default: false
+      selector:
+        boolean: null
+    text_blink:
+      name: Text Blink
+      description: Blink the text
+      required: false
+      default: false
+      selector:
+        boolean: null
+    text_blink_interval_ms:
+      name: Text Blink Interval
+      description: Duration of each blink state (ms)
+      required: false
+      default: 500
+      selector:
+        number:
+          min: 50
+          max: 5000
+    texts:
+      name: Texts (multipli)
+      description: YAML list of up to 4 texts (text, x, y, size, font, color_hex, wrap, align, scroll,
+        line_spacing, blink, blink_interval_ms). Overrides the single text fields.
+      required: false
+      example: "- text: \"Salotto\"\n  x: 0\n  y: 0\n  size: 6\n- text: \"21°C\"\n  x: 0\n  y: 8\n  size:\
+        \ 8\n  scroll: true\n- text: \"ALLARME\"\n  x: 0\n  y: 16\n  size: 8\n  blink: true\n  blink_interval_ms:\
+        \ 300\n"
+      selector:
+        object: null
+    scroll_step:
+      name: Scroll Speed
+      description: Pixels per animation frame for scrolling text
+      required: false
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 20
+    scroll_frame_ms:
+      name: Scroll Frame Duration
+      description: Frame duration (ms)
+      required: false
+      default: 80
+      selector:
+        number:
+          min: 20
+          max: 1000
+    scroll_gap:
+      name: Scroll Gap
+      description: Blank pixels between scroll loops
+      required: false
+      default: 16
+      selector:
+        number:
+          min: 0
+          max: 200
+    bg_color:
+      name: Background Color
+      description: Background color
+      required: false
+      default:
+      - 0
+      - 0
+      - 0
+      selector:
+        color_rgb: null
+    save_slot:
+      name: Save Slot
+      description: Save to device slot (0 = don't save)
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 10
