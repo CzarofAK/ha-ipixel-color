@@ -1,7 +1,5 @@
 # iPIXEL Color - Home Assistant Integration
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/A4747U9)
-
 A Home Assistant custom integration for iPIXEL Color LED matrix displays via Bluetooth.
 These displays have been recently available as B.K. Light LED Pixel Board from Action and thus get increasing popularity.
 
