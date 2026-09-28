@@ -49,7 +49,8 @@ These displays have been recently available as B.K. Light LED Pixel Board from A
 4. Add the repository URL: `https://github.com/CzarofAK/ha-ipixel-color`
 5. Select **Integration** as the category
 6. Click **Add**
-7. Search for "iPIXEL Color" in HACS and install it
+7. Search for "iPIXEL Color" in HACS and install it (pick the latest release;
+   the default branch is only for testing)
 8. Restart Home Assistant
 9. Add the integration via Settings → Devices & Services → Add Integration
 
@@ -62,6 +63,21 @@ These displays have been recently available as B.K. Light LED Pixel Board from A
 ### Optional: Custom Fonts
 
 Place `.ttf`/`.otf` font files in the `fonts/` folder within the integration directory for additional font options.
+
+## Versioning
+
+This fork follows [Semantic Versioning](https://semver.org/) and counts
+**independently** of the upstream project: `cagcoach/ha-ipixel-color` and the
+merged forks never raised their version above `0.1.0`, so a version number of
+this fork does not correspond to an upstream release with the same number.
+
+- `0.x`: features and changes in minor versions (`0.2.0`), fixes in patch
+  versions (`0.2.1`); breaking changes are possible in minor versions and are
+  listed in [CHANGELOG.md](CHANGELOG.md)
+- `1.0.0` once the feature set is verified on real hardware
+
+Releases are tagged `vX.Y.Z` and published as GitHub releases, which HACS
+shows as versions.
 
 ## Entities
 
@@ -255,8 +271,17 @@ All services are listed with their fields in Developer Tools → Actions.
 | ✅ Pixel Control | Complete |
 | ✅ Digital Signage | Complete |
 | ✅ Lovelace Card | Complete |
-| 🔄 GIF Animations | In Progress |
+| ✅ GIF Animations | Complete |
+| ✅ MDI Icons / Layouts | Complete |
+| ✅ Weather Clock (96×16) | Complete |
+| ✅ Emoji (Twemoji) | Complete |
+| ✅ Robust connection / keepalive | Complete |
+| 🔄 Hardware verification of all services | In Progress |
 | 🔄 Animated Variable-Width Fonts | Planned |
+
+Complete means implemented and covered by the automated tests (real Home
+Assistant core, simulated panels). See the CHANGELOG for what is not yet
+verified on hardware.
 
 ## Technical
 
