@@ -5,6 +5,18 @@
 A Home Assistant custom integration for iPIXEL Color LED matrix displays via Bluetooth.
 These displays have been recently available as B.K. Light LED Pixel Board from Action and thus get increasing popularity.
 
+> **About this fork** — based on [cagcoach/ha-ipixel-color](https://github.com/cagcoach/ha-ipixel-color),
+> with a robust Bluetooth layer (keepalive, reconnect, per-panel lock, reliable power state,
+> several panels switching together) and the features of other forks merged in:
+> [ahzs645](https://github.com/ahzs645/ha-ipixel-color) (most features below, Lovelace cards),
+> [tigers75](https://github.com/tigers75/ha-ipixel-color) (MDI icons, layouts),
+> [gokberj](https://github.com/gokberj/ha-ipixel-color) (weather clock),
+> [bastooky](https://github.com/bastooky/ha-ipixel-color) (emoji, dimension override),
+> [arcdrake22](https://github.com/arcdrake22/ha-ipixel-color),
+> [nielsmaerten](https://github.com/nielsmaerten/ha-ipixel-color) and
+> [MobilGame06](https://github.com/MobilGame06/ha-ipixel-color) (fixes).
+> See [CHANGELOG.md](CHANGELOG.md).
+
 ## Features
 
 - **Multiple Display Modes**: Text Image, Native Text, Clock, GIF, and Rhythm modes
@@ -23,6 +35,9 @@ These displays have been recently available as B.K. Light LED Pixel Board from A
 - **State Persistence**: Settings preserved across HA restarts
 - **Bluetooth Proxy Support**: Compatible with Bluetooth proxy devices
 - **Auto-discovery**: Finds iPIXEL devices automatically via Bluetooth
+- **Robust connection**: optional keepalive, automatic reconnect, power state restored and re-applied
+- **MDI icons & layouts**: any Home Assistant icon, free composition of icons, image and texts
+- **Weather clock** for 96×16 panels, **any emoji** via Twemoji
 
 ## Installation
 
@@ -31,7 +46,7 @@ These displays have been recently available as B.K. Light LED Pixel Board from A
 1. Open HACS in Home Assistant
 2. Click on the three dots in the top right corner
 3. Select **Custom repositories**
-4. Add the repository URL: `https://github.com/cagcoach/ha-ipixel-color`
+4. Add the repository URL: `https://github.com/CzarofAK/ha-ipixel-color`
 5. Select **Integration** as the category
 6. Click **Add**
 7. Search for "iPIXEL Color" in HACS and install it
@@ -124,9 +139,20 @@ bad write can leave the device unable to start.
 - **Test content before writing it to a slot.** If a payload displays correctly
   without `buffer_slot`, it is safe to save. A corrupt payload written to a slot
   is replayed on every boot.
-- **`ipixel_color.set_default_mode` is destructive.** It erases every saved slot
-  and the device settings. To blank the screen, use `ipixel_color.clear_pixels`
-  or turn off the screen switch — both are non-destructive.
+- **Destructive or locking commands are not exposed as services** in this fork:
+  `set_default_mode` and `erase_data` erase every saved slot and the device
+  settings, `set_password` can lock you out, `send_raw_command` bypasses all
+  checks. To blank the screen, use `ipixel_color.clear_pixels` or turn off the
+  screen switch — both are non-destructive.
+
+## Options
+
+Settings → Devices & Services → iPIXEL Color → Configure (per panel):
+
+- **Keep connection open** (default on): commands execute immediately and
+  several panels switch at the same moment. Occupies one Bluetooth proxy
+  connection slot per panel, and the phone app cannot connect meanwhile.
+- **Override panel dimensions**: for panels that report the wrong size.
 
 ## Troubleshooting
 
@@ -204,6 +230,14 @@ The integration provides these services for automation:
 | `ipixel_color.add_schedule` | Add scheduled display item |
 | `ipixel_color.set_power_schedule` | Configure auto on/off times |
 | `ipixel_color.add_time_slot` | Schedule playlist for specific times |
+| `ipixel_color.display_mdi_icon` | Show a Material Design Icon |
+| `ipixel_color.display_layout` | Compose icons, an image and texts (scroll/blink) |
+| `ipixel_color.display_weather_clock` | Weather icon, date, time, temperature (96×16) |
+| `ipixel_color.display_emoji` | Show any emoji (Twemoji) |
+| `ipixel_color.set_countdown_timer` / `set_stopwatch` / `set_scoreboard` | Native timer, stopwatch, scoreboard |
+| `ipixel_color.display_gallery_asset` / `display_border` | Bundled gallery images and animated borders |
+
+All services are listed with their fields in Developer Tools → Actions.
 
 ## Status
 
@@ -226,9 +260,12 @@ The integration provides these services for automation:
 
 ## Technical
 
-- Requires: Home Assistant 2024.1+ and HACS
+- Requires: Home Assistant 2024.12+ and HACS (tested with 2026.2)
 
 ## Acknowledgments
+
+Thanks to the authors of the forks listed at the top, whose work is merged here
+with their commits and co-author credits preserved.
 
 Special thanks to the authors of [pypixelcolor](https://github.com/lucagoc/pypixelcolor) for their excellent library that powers the core functionality of this integration. Their work in reverse-engineering the iPIXEL protocol has been invaluable.
 
