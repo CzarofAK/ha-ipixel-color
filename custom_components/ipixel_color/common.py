@@ -169,6 +169,16 @@ async def _update_textimage_mode(hass: HomeAssistant, device_name: str, api, tex
         # Get all current settings
         font_name = await _get_entity_setting(hass, device_name, "select", "font_select", str, api._address)
         font_size = await _get_entity_setting(hass, device_name, "number", "font_size", float, api._address)
+
+        # textimage renders host-side, so panel firmware fonts (CUSONG /
+        # SIMSUN / VCR_OSD_MONO) are no valid host fonts: map them to the
+        # bundled host font. The shared font-size entity also carries the
+        # text-mode scale (often 1.0) -> sizes below 4 px auto-fit instead
+        # (fix from arcdrake22/ha-ipixel-color).
+        if font_name and font_name.lower().split(".")[0] in ("cusong", "simsun", "vcr_osd_mono"):
+            font_name = "OpenSans-Light.ttf"
+        if font_size is not None and 0 < font_size < 4:
+            font_size = None
         line_spacing = await _get_entity_setting(hass, device_name, "number", "line_spacing", int, api._address)
         antialias = await _get_entity_setting(hass, device_name, "switch", "antialiasing", bool, api._address)
 
