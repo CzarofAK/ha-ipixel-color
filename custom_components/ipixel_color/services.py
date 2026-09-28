@@ -235,7 +235,6 @@ async def handle_add_schedule(call: ServiceCall) -> None:
         mode=call.data.get("mode", "textimage"),
         duration_ms=call.data.get("duration_ms", 5000),
         slot=len(schedule_manager._schedules) + 1,
-        time_trigger=None,
         enabled=True
     )
 
@@ -354,10 +353,15 @@ async def handle_display_image_raw_rgb(call: ServiceCall) -> None:
         _LOGGER.error("No image_path provided")
         return
 
+    if not call.hass.config.is_allowed_path(image_path):
+        _LOGGER.error("image_path %s is not in allowlist_external_dirs", image_path)
+        return
+
     try:
-        import aiofiles
-        async with aiofiles.open(image_path, 'rb') as f:
-            image_bytes = await f.read()
+        # aiofiles is not a dependency of HA or this integration -> executor
+        from pathlib import Path
+
+        image_bytes = await call.hass.async_add_executor_job(Path(image_path).read_bytes)
 
         # Determine file extension
         file_ext = "." + image_path.split(".")[-1].lower() if "." in image_path else ".png"
