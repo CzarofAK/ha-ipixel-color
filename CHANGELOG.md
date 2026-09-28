@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   restart and re-applied to the panel after every reconnect
 - Blocking font directory scan in the event loop
 - Device info: 3 attempts, unknown defaults are not cached
+- Text animations 3/4 are refused on non-32x32 panels (boot loop)
+- Notifications on BlueZ with bleak >= 1.0 ("Notify acquired")
+- Rediscovery when HA lost the device right after a link drop
+- Clock time/date use the Home Assistant time zone
 
 ### Added
 - Background keepalive (reconnect on advertisement / every 60 s)
