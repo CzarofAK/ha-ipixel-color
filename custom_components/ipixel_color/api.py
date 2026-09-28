@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any, Callable, TYPE_CHECKING
 
 from homeassistant.core import callback
@@ -24,6 +25,19 @@ from .exceptions import iPIXELConnectionError
 
 _LOGGER = logging.getLogger(__name__)
 
+DEVICE_INFO_RETRY_AFTER = 300  # seconds
+DEFAULT_DEVICE_INFO: dict[str, Any] = {
+    "width": 64,
+    "height": 16,
+    "device_type": 0,
+    "device_type_str": "Unknown",
+    "led_type": 0,
+    "mcu_version": "Unknown",
+    "wifi_version": "Unknown",
+    "has_wifi": False,
+    "password_flag": 255,
+}
+
 
 class iPIXELAPI:
     """iPIXEL Color device API client - simplified facade."""
@@ -44,6 +58,7 @@ class iPIXELAPI:
         self._listeners: list[Callable[[], None]] = []
         self._device_info: dict[str, Any] | None = None
         self._device_response: bytes | None = None
+        self._device_info_failed_at = float("-inf")
         self._bluetooth.on_state_change = self._notify_listeners
         self._bluetooth.on_reconnected = self.apply_desired_power
 
@@ -186,37 +201,41 @@ class iPIXELAPI:
             return False
     
     async def get_device_info(self) -> dict[str, Any] | None:
-        """Query device information and store it."""
+        """Query device information and store it.
+
+        Retries up to 3 times. A failed query is NOT cached (so a later call
+        can still obtain the real values), but is rate-limited to one retry
+        cycle per DEVICE_INFO_RETRY_AFTER seconds to keep text updates fast.
+        """
         if self._device_info is not None:
             return self._device_info
-            
-        try:
-            command = build_device_info_command()
-            response = await self._bluetooth.request(command, timeout=5.0)
-            if not response:
-                raise Exception("No response received")
-            self._device_response = response
-            self._device_info = parse_device_response(response)
 
-            _LOGGER.info("Device info retrieved: %s", self._device_info)
-            return self._device_info
-            
-        except Exception as err:
-            _LOGGER.error("Failed to get device info: %s", err)
-            # Return default values
-            self._device_info = {
-                "width": 64,
-                "height": 16,
-                "device_type": 0,
-                "device_type_str": "Unknown",
-                "led_type": 0,
-                "mcu_version": "Unknown",
-                "wifi_version": "Unknown",
-                "has_wifi": False,
-                "password_flag": 255
-            }
-            return self._device_info
-    
+        now = time.monotonic()
+        if now - self._device_info_failed_at < DEVICE_INFO_RETRY_AFTER:
+            return dict(DEFAULT_DEVICE_INFO)
+
+        for attempt in range(1, 4):
+            try:
+                response = await self._bluetooth.request(
+                    build_device_info_command(), timeout=5.0
+                )
+                if not response:
+                    raise iPIXELConnectionError("No response received")
+                self._device_response = response
+                self._device_info = parse_device_response(response)
+                _LOGGER.info("Device info retrieved: %s", self._device_info)
+                return self._device_info
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning(
+                    "Failed to get device info (attempt %d/3): %s", attempt, err
+                )
+                if attempt < 3:
+                    await asyncio.sleep(1)
+
+        _LOGGER.error("Failed to get device info after 3 attempts, using defaults")
+        self._device_info_failed_at = time.monotonic()
+        return dict(DEFAULT_DEVICE_INFO)
+
     async def display_text(self, text: str, antialias: bool = True, font_size: float | None = None, font: str | None = None, line_spacing: int = 0, text_color: str = "ffffff", bg_color: str = "000000") -> bool:
         """Display text as image using PIL and pypixelcolor with color gradient mapping.
 
