@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: |
+          pip install -r requirements_test.txt
+          # requirements of the HA components the integration depends on
+          python - <<'PY' > ha_reqs.txt
+          import json, pathlib, homeassistant.components as c
+          base = pathlib.Path(c.__file__).parent
+          reqs = set()
+          for comp in ("bluetooth", "usb", "frontend", "http", "media_player", "camera", "stream", "ffmpeg"):
+              f = base / comp / "manifest.json"
+              if f.exists():
+                  reqs |= set(json.loads(f.read_text()).get("requirements", []))
+          print("\n".join(sorted(reqs)))
+          PY
+          pip install -r ha_reqs.txt
+      - name: Run tests
+        run: pytest -q --timeout=120
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+          # topics / issues are repository settings, not code
+          ignore: brands topics issues

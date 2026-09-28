@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iPIXEL Cards Preview</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E%3Crect x='2' y='5' width='3' height='3' fill='%2303a9f4'/%3E%3Crect x='6.5' y='5' width='3' height='3' fill='%23ff9800'/%3E%3Crect x='11' y='5' width='3' height='3' fill='%234caf50'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --primary-color: #03a9f4;
+      --primary-text-color: #fff;
+      --secondary-text-color: rgba(255,255,255,0.7);
+      --card-background-color: #1c1c1c;
+      --ha-card-background: #1c1c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #111;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    .header h1 {
+      margin: 0 0 8px 0;
+      font-size: 1.8em;
+      font-weight: 500;
+    }
+
+    .header p {
+      margin: 0;
+      color: rgba(255,255,255,0.6);
+      font-size: 0.9em;
+    }
+
+    .preview-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .card-wrapper {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 16px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .card-label {
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 12px;
+    }
+
+    /* Mock ha-card styles */
+    ha-card {
+      display: block;
+      background: var(--card-background-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .controls-section {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 30px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .controls-section h3 {
+      margin: 0 0 16px 0;
+      font-size: 1em;
+      font-weight: 500;
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* Connection panels are collapsed by default so the cards stay above
+       the fold; they expand to ~8 rows of controls each. */
+    details.controls-section > summary {
+      font-size: 1em;
+      font-weight: 500;
+      color: rgba(255,255,255,0.8);
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    details.controls-section > summary::-webkit-details-marker { display: none; }
+
+    details.controls-section > summary::before {
+      content: '▸';
+      color: var(--primary-color);
+      transition: transform 0.15s ease;
+    }
+
+    details.controls-section[open] > summary::before { transform: rotate(90deg); }
+
+    details.controls-section[open] > summary { margin-bottom: 16px; }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .control-row label {
+      min-width: 60px;
+      font-size: 0.85em;
+      color: rgba(255,255,255,0.7);
+      flex-shrink: 0;
+    }
+
+    .control-row input[type="number"],
+    .control-row select {
+      flex: 1;
+      min-width: 60px;
+      max-width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #222;
+      color: #fff;
+      font-size: 0.9em;
+      box-sizing: border-box;
+    }
+
+    .control-row input[type="range"] {
+      min-width: 0;
+    }
+
+    .control-row button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary-color);
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.9em;
+      flex-shrink: 0;
+    }
+
+    .control-row button:hover {
+      background: #0288d1;
+    }
+
+    .log-section {
+      background: #0a0a0a;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 30px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .log-section h3 {
+      margin: 0 0 12px 0;
+      font-size: 0.9em;
+      color: rgba(255,255,255,0.6);
+    }
+
+    #service-log {
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.8em;
+      color: #0f0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #service-log .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #222;
+    }
+
+    #service-log .log-time {
+      color: #666;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>iPIXEL Cards Preview</h1>
+    <p>Development preview - test cards without Home Assistant</p>
+    <p style="font-size: 0.8em; color: rgba(255,255,255,0.4); margin-top: 4px;">
+      Tip: Click the <strong style="color: #ff9800;">Test</strong> button on the Display Card to enable Test Mode for previewing without a device
+    </p>
+
+    <details class="controls-section" id="device-section" style="margin-top: 20px; text-align: left;">
+      <summary>Real Device Connection</summary>
+
+      <div class="control-row">
+        <label>Transport:</label>
+        <select id="transport-select">
+          <option value="ble">Bluetooth</option>
+          <option value="wifi">Wi-Fi</option>
+        </select>
+        <span id="device-status" style="color: #f44; font-weight: bold;">Disconnected</span>
+        <span id="device-name" style="color: #888; margin-left: 8px;"></span>
+      </div>
+
+      <!-- Wi-Fi needs a bridge URL and the panel size up front; BLE reads both
+           from the device once connected. -->
+      <div class="control-row transport-only" data-transport="wifi">
+        <label>Bridge:</label>
+        <input type="text" id="wifi-ws-url" value="ws://localhost:9001" style="flex:1;">
+      </div>
+      <div class="control-row transport-only" data-transport="wifi">
+        <label>Size:</label>
+        <input type="number" id="wifi-width" value="64" min="8" max="256" style="width:70px;">
+        <span style="color:#666;">x</span>
+        <input type="number" id="wifi-height" value="16" min="8" max="64" style="width:70px;">
+      </div>
+
+      <div class="control-row">
+        <button id="device-connect-btn" onclick="deviceConnect()">Connect</button>
+        <button id="device-disconnect-btn" onclick="deviceDisconnect()" style="display:none;">Disconnect</button>
+        <span id="transport-note" style="color:#f88; font-size:0.8em;"></span>
+      </div>
+
+      <div id="device-controls" style="display:none;">
+        <div class="control-row">
+          <button onclick="devicePowerOn()">Power On</button>
+          <button onclick="devicePowerOff()">Power Off</button>
+          <button onclick="deviceSendPreview()">Send Preview</button>
+          <button onclick="deviceClear()" style="background:#888;">Clear</button>
+          <button onclick="deviceSyncTime()" style="background:#08f;">Sync Time</button>
+        </div>
+
+        <div class="control-row">
+          <button id="device-stream-btn" onclick="deviceToggleStream()" style="background:#0aa; min-width:140px;">▶ Stream to Device</button>
+          <label style="margin-left:8px;">FPS:</label>
+          <select id="device-stream-fps">
+            <option value="2">2 (Slow)</option>
+            <option value="3" selected>3</option>
+            <option value="5">5 (Fast)</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+            <option value="15">15 (Wi-Fi)</option>
+          </select>
+          <span id="device-stream-status" style="margin-left:8px; color:#888;"></span>
+        </div>
+
+        <div class="control-row">
+          <label>Brightness:</label>
+          <input type="range" id="device-brightness" min="1" max="100" value="50" style="flex:1;">
+          <span id="device-brightness-value">50</span>
+          <button onclick="deviceSetBrightness()">Set</button>
+        </div>
+
+        <div class="control-row">
+          <label>Clock:</label>
+          <select id="device-clock-style">
+            <option value="0">Style 0</option>
+            <option value="1" selected>Style 1</option>
+            <option value="2">Style 2</option>
+            <option value="3">Style 3</option>
+            <option value="4">Style 4</option>
+            <option value="5">Style 5</option>
+            <option value="6">Style 6</option>
+            <option value="7">Style 7</option>
+            <option value="8">Style 8</option>
+          </select>
+          <button onclick="deviceSetClockMode()">Show Clock</button>
+          <label style="margin-left:8px;">Rotation:</label>
+          <select id="device-orientation">
+            <option value="0">0°</option>
+            <option value="1">90°</option>
+            <option value="2">180°</option>
+            <option value="3">270°</option>
+          </select>
+          <button onclick="deviceSetOrientation()">Set</button>
+        </div>
+
+        <div class="control-row">
+          <label>Rhythm:</label>
+          <select id="device-rhythm-style">
+            <option value="0">Classic Bars</option>
+            <option value="1">Mirrored Bars</option>
+            <option value="2">Center Out</option>
+            <option value="3">Wave Style</option>
+            <option value="4">Particle Style</option>
+          </select>
+          <button onclick="deviceRhythmDemo()">Demo Rhythm</button>
+        </div>
+
+        <div class="control-row">
+          <button onclick="deviceCountdown()" style="background:#a50;">Countdown 1m</button>
+          <button onclick="deviceScoreboard()" style="background:#05a;">Score 0-0</button>
+          <button onclick="deviceStopwatch()" style="background:#0a5;">Stopwatch Start</button>
+          <button onclick="deviceExitMode()" style="background:#555;">Exit Mode</button>
+        </div>
+
+        <!-- Bluetooth-only diagnostics: ACK notifications and the DIY pixel
+             path have no Wi-Fi equivalent in the harness. -->
+        <div class="control-row cap-only" data-cap="debugTools">
+          <button onclick="deviceTestPattern()" style="background:#f80;">Test 3px</button>
+          <button onclick="deviceTestCamera()" style="background:#f0f;">Test Cam</button>
+          <button onclick="deviceSendDiyPixels()" style="background:#888;">DIY (Slow)</button>
+          <button onclick="debugRenderer()" style="background:#08f;">Debug</button>
+          <button onclick="deviceResetLock()" style="background:#f00;">Reset Lock</button>
+        </div>
+        <div class="control-row cap-only" data-cap="testPattern">
+          <button onclick="deviceTestPatternWifi()" style="background:#f80;">Test Pattern</button>
+        </div>
+      </div>
+
+      <p style="font-size: 0.75em; color: #666; margin-top: 8px;" id="transport-help"></p>
+    </details>
+  </div>
+
+  <div class="preview-container">
+    <div class="card-wrapper">
+      <div class="card-label">Display Card</div>
+      <ipixel-display-card id="display-card"></ipixel-display-card>
+    </div>
+
+    <div class="card-wrapper">
+      <div class="card-label">Text Card</div>
+      <ipixel-text-card id="text-card"></ipixel-text-card>
+    </div>
+
+    <div class="card-wrapper">
+      <div class="card-label">Controls Card</div>
+      <ipixel-controls-card id="controls-card"></ipixel-controls-card>
+    </div>
+
+    <div class="card-wrapper">
+      <div class="card-label">Playlist Card</div>
+      <ipixel-playlist-card id="playlist-card"></ipixel-playlist-card>
+    </div>
+
+    <div class="card-wrapper">
+      <div class="card-label">Schedule Card</div>
+      <ipixel-schedule-card id="schedule-card"></ipixel-schedule-card>
+    </div>
+
+    <div class="card-wrapper">
+      <div class="card-label">Editor Card</div>
+      <ipixel-editor-card id="editor-card"></ipixel-editor-card>
+    </div>
+
+    <div class="card-wrapper">
+      <div class="card-label">Gallery Card</div>
+      <ipixel-gallery-card id="gallery-card"></ipixel-gallery-card>
+    </div>
+  </div>
+
+  <div class="controls-section">
+    <h3>Preview Settings</h3>
+    <div class="control-row">
+      <label>Width:</label>
+      <input type="number" id="preview-width" value="64" min="16" max="256">
+      <label>Height:</label>
+      <input type="number" id="preview-height" value="16" min="8" max="64">
+      <button onclick="updateResolution()">Apply</button>
+    </div>
+    <div class="control-row">
+      <label>Power:</label>
+      <select id="preview-power">
+        <option value="on">On</option>
+        <option value="off">Off</option>
+      </select>
+      <button onclick="togglePower()">Toggle</button>
+    </div>
+  </div>
+
+  <div class="log-section">
+    <h3>Service Calls Log</h3>
+    <div id="service-log"></div>
+  </div>
+
+  <script type="module">
+    // Mock Home Assistant API
+    const mockStates = {
+      'switch.ipixel_preview': {
+        state: 'on',
+        entity_id: 'switch.ipixel_preview',
+        attributes: { friendly_name: 'iPIXEL Preview' }
+      },
+      'text.ipixel_preview_text_display': {
+        state: 'Hello',
+        entity_id: 'text.ipixel_preview_text_display',
+        attributes: { friendly_name: 'iPIXEL Text' }
+      },
+      'sensor.ipixel_preview_width': {
+        state: '64',
+        entity_id: 'sensor.ipixel_preview_width',
+        attributes: { friendly_name: 'Display Width' }
+      },
+      'sensor.ipixel_preview_height': {
+        state: '16',
+        entity_id: 'sensor.ipixel_preview_height',
+        attributes: { friendly_name: 'Display Height' }
+      },
+      'select.ipixel_preview_mode': {
+        state: 'text',
+        entity_id: 'select.ipixel_preview_mode',
+        attributes: {
+          friendly_name: 'Display Mode',
+          options: ['text', 'textimage', 'clock', 'gif', 'rhythm']
+        }
+      },
+      'number.ipixel_preview_brightness': {
+        state: '50',
+        entity_id: 'number.ipixel_preview_brightness',
+        attributes: {
+          friendly_name: 'Brightness',
+          min: 1,
+          max: 100
+        }
+      },
+      'switch.ipixel_preview_upside_down': {
+        state: 'off',
+        entity_id: 'switch.ipixel_preview_upside_down',
+        attributes: { friendly_name: 'Upside Down' }
+      }
+    };
+
+    // Service log
+    function logService(domain, service, data) {
+      const logEl = document.getElementById('service-log');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">${time}</span>${domain}.${service}: ${JSON.stringify(data)}`;
+      logEl.insertBefore(entry, logEl.firstChild);
+
+      // Keep only last 20 entries
+      while (logEl.children.length > 20) {
+        logEl.removeChild(logEl.lastChild);
+      }
+    }
+
+    // Mock hass object
+    const mockHass = {
+      states: mockStates,
+      callService: async (domain, service, data) => {
+        console.log(`Service call: ${domain}.${service}`, data);
+        logService(domain, service, data);
+
+        // Handle some services
+        if (domain === 'switch' && service === 'toggle') {
+          const entityId = data.entity_id;
+          if (mockStates[entityId]) {
+            mockStates[entityId].state = mockStates[entityId].state === 'on' ? 'off' : 'on';
+            updateCards();
+          }
+        }
+        if (domain === 'text' && service === 'set_value') {
+          const entityId = data.entity_id;
+          if (mockStates[entityId]) {
+            mockStates[entityId].state = data.value;
+          }
+        }
+
+        // Forward iPIXEL service calls to whichever transport is connected.
+        // Only services the integration actually registers are handled here --
+        // anything else would be forwarding a call Home Assistant would reject.
+        if (domain === 'ipixel_color' && DEVICE.isConnected()) {
+          const tag = DEVICE.getActiveId();
+          try {
+            if (service === 'display_text') {
+              // Wait for the display to update before sending pixels
+              // The updateDisplayState event needs time to propagate
+              logService(tag, 'forwarding_display_text', data);
+              await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+              await deviceSendPreview();
+            } else if (service === 'set_rhythm_mode_advanced') {
+              const levels = String(data.levels).split(',').map(Number);
+              await DEVICE.setRhythmLevelMode(data.style, levels);
+              logService(tag, 'set_rhythm_mode_advanced', data);
+            } else if (service === 'set_screen') {
+              await DEVICE.selectScreen(data.screen);
+              logService(tag, 'select_screen', data);
+            } else if (service === 'show_slot') {
+              await DEVICE.showSlot(data.slot);
+              logService(tag, 'show_slot', data);
+            } else if (service === 'set_program_mode') {
+              await DEVICE.programMode(data.buffers);
+              logService(tag, 'set_program_mode', data);
+            } else if (service === 'delete_slot') {
+              await DEVICE.deleteScreen(data.slot);
+              logService(tag, 'delete_slot', data);
+            } else if (service === 'set_brightness') {
+              await DEVICE.setBrightness(data.level);
+              logService(tag, 'set_brightness', data);
+            } else if (service === 'clear_pixels') {
+              await DEVICE.enterDiyMode();
+              logService(tag, 'clear_pixels', data);
+            } else if (service === 'set_clock_mode') {
+              await DEVICE.setClockMode(data.style, data.format_24h, data.show_date);
+              logService(tag, 'set_clock_mode', data);
+            } else if (service === 'sync_time') {
+              await DEVICE.syncTime();
+              logService(tag, 'sync_time', data);
+            } else if (service === 'set_upside_down') {
+              await DEVICE.setUpsideDown(data.enabled ? 1 : 0);
+              logService(tag, 'set_upside_down', data);
+            } else if (service === 'set_diy_mode') {
+              await DEVICE.call('switchToDiyFunMode', parseInt(data.mode));
+              logService(tag, 'set_diy_mode', data);
+            } else if (service === 'send_raw_command') {
+              const bytes = data.hex_data.split(/\s+/).map(h => parseInt(h, 16));
+              await DEVICE.sendCommand(bytes);
+              logService(tag, 'send_raw_command', data);
+            }
+          } catch (e) {
+            logService(tag, 'error', { message: e.message });
+          }
+        }
+
+        // Save effect to slot — capture + encode always, BLE upload if connected
+        if (domain === 'ipixel_color' && service === 'save_to_slot') {
+          try {
+            await saveEffectToSlot(data.slot, data.type, data.frames, data.delay);
+          } catch (e) {
+            logService('save', 'error', { message: e.message });
+          }
+        }
+
+        // Upload user-generated GIF (data URL from gallery card)
+        if (domain === 'ipixel_color' && service === 'upload_gif' && BLE.isDeviceConnected()) {
+          try {
+            const dataUrl = data.gif_url;
+            const resp = await fetch(dataUrl);
+            const gifBytes = new Uint8Array(await resp.arrayBuffer());
+            logService('ble', 'upload_gif', { size: gifBytes.length });
+            const slot = data.buffer_slot || 1;
+            await BLE.saveGifToSlot(slot, gifBytes, (stage, detail) => {
+              logService('ble', 'upload_gif_' + stage, detail);
+            });
+          } catch (e) {
+            logService('ble', 'upload_gif_error', { message: e.message });
+          }
+        }
+
+        // Gallery preview — works without BLE
+        if (domain === 'ipixel_color' && service === 'display_local_gallery') {
+          try {
+            const galleryBase = `${window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1)}gallery`;
+            const url = `${galleryBase}/${data.size}/${data.filename}`;
+            logService('gallery', 'loading', { url });
+            playGifOnPreview(url);
+
+            // Also upload to device if BLE connected
+            if (BLE.isDeviceConnected()) {
+              const resp = await fetch(url);
+              const gifBytes = new Uint8Array(await resp.arrayBuffer());
+              const slot = data.buffer_slot || 1;
+              await BLE.saveGifToSlot(slot, gifBytes, (stage, detail) => {
+                logService('ble', 'gallery_' + stage, detail);
+              });
+            }
+          } catch (e) {
+            logService('gallery', 'error', { message: e.message });
+          }
+        }
+
+        return Promise.resolve();
+      },
+      callWS: (msg) => {
+        console.log('WebSocket call:', msg);
+        return Promise.resolve({});
+      },
+      connection: {
+        subscribeEvents: () => Promise.resolve(() => {}),
+      },
+      language: 'en',
+      locale: { language: 'en' }
+    };
+
+    // Update resolution
+    window.updateResolution = function() {
+      const width = document.getElementById('preview-width').value;
+      const height = document.getElementById('preview-height').value;
+      mockStates['sensor.ipixel_preview_width'].state = width;
+      mockStates['sensor.ipixel_preview_height'].state = height;
+
+      // Clear cached resolution
+      localStorage.removeItem('iPIXEL_Resolution');
+      localStorage.setItem('iPIXEL_Resolution', JSON.stringify([parseInt(width), parseInt(height)]));
+
+      updateCards();
+      logService('preview', 'set_resolution', { width, height });
+    };
+
+    // Toggle power
+    window.togglePower = function() {
+      const powerSelect = document.getElementById('preview-power');
+      const newState = powerSelect.value === 'on' ? 'off' : 'on';
+      powerSelect.value = newState;
+      mockStates['switch.ipixel_preview'].state = newState;
+      updateCards();
+      logService('switch', 'toggle', { entity_id: 'switch.ipixel_preview' });
+    };
+
+    // Update all cards
+    function updateCards() {
+      document.querySelectorAll('ipixel-display-card, ipixel-text-card, ipixel-controls-card, ipixel-playlist-card, ipixel-schedule-card, ipixel-editor-card, ipixel-gallery-card').forEach(card => {
+        if (card.hass !== undefined) {
+          card.hass = { ...mockHass };
+        }
+      });
+    }
+
+    // Import device modules
+    import * as BLE from './src/ble-device.js';
+    import * as WIFI from './src/wifi-device.js';
+    import * as DEVICE from './src/device-transport.js';
+    import { encodeGif } from './src/gif-encoder.js';
+    window.BLE = BLE; // Expose for debugging
+    window.WIFI = WIFI;
+    window.DEVICE = DEVICE;
+    window.encodeGif = encodeGif;
+
+    // ── Transport-agnostic device panel ────────────────────────────────────
+    // One set of handlers drives whichever transport is selected; the facade
+    // in src/device-transport.js forwards to ble-device or wifi-device.
+
+    const $id = (id) => document.getElementById(id);
+
+    function syncTransportUI() {
+      const t = DEVICE.getActive();
+      const connected = DEVICE.isConnected();
+      const available = t.isAvailable();
+
+      // Rows that only make sense for one transport, or that need a capability.
+      document.querySelectorAll('.transport-only').forEach(el => {
+        el.style.display = el.dataset.transport === t.id ? 'flex' : 'none';
+      });
+      document.querySelectorAll('.cap-only').forEach(el => {
+        el.style.display = t.capabilities[el.dataset.cap] ? 'flex' : 'none';
+      });
+
+      $id('device-controls').style.display = connected ? 'block' : 'none';
+      $id('device-connect-btn').style.display = connected ? 'none' : 'inline-block';
+      $id('device-disconnect-btn').style.display = connected ? 'inline-block' : 'none';
+      $id('device-connect-btn').disabled = !available;
+      $id('transport-note').textContent = available ? '' : t.unavailableReason;
+      $id('transport-select').disabled = connected;
+
+      $id('transport-help').textContent = t.id === 'ble'
+        ? 'Requires Chrome or Edge. The panel only advertises when nothing else is connected — close the phone app first.'
+        : 'Requires python tools/wifi_bridge.py running locally. Connect to the iPIXEL Wi-Fi AP first.';
+
+      $id('device-status').textContent = connected ? 'Connected' : 'Disconnected';
+      $id('device-status').style.color = connected ? '#4f4' : '#f44';
+      if (!connected) $id('device-name').textContent = '';
+    }
+    window.syncTransportUI = syncTransportUI;
+
+    window.deviceConnect = async function() {
+      const t = DEVICE.getActive();
+      try {
+        const opts = {
+          wsUrl: $id('wifi-ws-url').value,
+          width: parseInt($id('wifi-width').value) || 64,
+          height: parseInt($id('wifi-height').value) || 16,
+        };
+        const name = await DEVICE.connect(opts);
+
+        const dimensions = DEVICE.getDeviceDimensions();
+        if (dimensions) {
+          $id('preview-width').value = dimensions.width;
+          $id('preview-height').value = dimensions.height;
+          updateResolution();
+        } else if (t.id === 'wifi') {
+          $id('preview-width').value = opts.width;
+          $id('preview-height').value = opts.height;
+          updateResolution();
+        }
+
+        const label = typeof name === 'string' ? name : t.label;
+        const notify = t.capabilities.notify ? ` (notify: ${BLE.hasNotify() ? 'ON' : 'OFF'})` : '';
+        const dim = dimensions ? ` [${dimensions.width}x${dimensions.height}]` : '';
+        $id('device-name').textContent = label + notify + dim;
+
+        syncTransportUI();
+        logService(t.id, 'connect', { device: label, dimensions });
+      } catch (e) {
+        syncTransportUI();
+        logService(t.id, 'error', { message: e.message });
+      }
+    };
+
+    window.deviceDisconnect = async function() {
+      const t = DEVICE.getActive();
+      if (DEVICE.isAnimationRunning()) {
+        DEVICE.stopAnimation();
+        updateStreamButton(false);
+      }
+      await DEVICE.disconnect();
+      syncTransportUI();
+      logService(t.id, 'disconnect', {});
+    };
+
+    window.devicePowerOn = async () => { await DEVICE.powerOn(); logService(DEVICE.getActiveId(), 'power_on', {}); };
+    window.devicePowerOff = async () => { await DEVICE.powerOff(); logService(DEVICE.getActiveId(), 'power_off', {}); };
+    window.deviceSyncTime = async () => { await DEVICE.syncTime(); logService(DEVICE.getActiveId(), 'sync_time', {}); };
+    window.deviceClear = async () => { await DEVICE.clearDisplay(); logService(DEVICE.getActiveId(), 'clear_display', {}); };
+    window.deviceExitMode = async () => { await DEVICE.exitMode(); logService(DEVICE.getActiveId(), 'exit_mode', {}); };
+    window.deviceCountdown = async () => { await DEVICE.setCountdownTimer(0, 1, 0); logService(DEVICE.getActiveId(), 'countdown', { minutes: 1 }); };
+    window.deviceScoreboard = async () => { await DEVICE.setScoreboard(0, 0); logService(DEVICE.getActiveId(), 'scoreboard', { a: 0, b: 0 }); };
+    window.deviceStopwatch = async () => { await DEVICE.setStopwatch(1); logService(DEVICE.getActiveId(), 'stopwatch', { mode: 'start' }); };
+    window.deviceResetLock = () => { BLE.resetBleLock(); logService('ble', 'lock_reset', {}); };
+
+    window.deviceSetBrightness = async function() {
+      const value = parseInt($id('device-brightness').value);
+      await DEVICE.setBrightness(value);
+      logService(DEVICE.getActiveId(), 'set_brightness', { value });
+    };
+
+    window.deviceSetClockMode = async function() {
+      const style = parseInt($id('device-clock-style').value);
+      await DEVICE.setClockMode(style, true, false);
+      logService(DEVICE.getActiveId(), 'set_clock_mode', { style });
+    };
+
+    window.deviceSetOrientation = async function() {
+      const orientation = parseInt($id('device-orientation').value);
+      await DEVICE.setOrientation(orientation);
+      logService(DEVICE.getActiveId(), 'set_orientation', { orientation });
+    };
+
+    window.deviceTestPatternWifi = async function() {
+      await WIFI.testPattern();
+      logService('wifi', 'test_pattern', { message: 'Red gradient sent' });
+    };
+
+    $id('transport-select').addEventListener('change', (e) => {
+      DEVICE.setActive(e.target.value);
+      syncTransportUI();
+      logService('preview', 'transport', { active: e.target.value });
+    });
+
+    // Rhythm demo state
+    let _rhythmDemoInterval = null;
+    let _rhythmDemoLevels = new Array(11).fill(0);
+
+    window.deviceRhythmDemo = async function() {
+      const style = parseInt($id('device-rhythm-style').value);
+
+      if (_rhythmDemoInterval) {
+        clearInterval(_rhythmDemoInterval);
+        _rhythmDemoInterval = null;
+        await DEVICE.setRhythmLevelMode(style, new Array(11).fill(0));
+        logService(DEVICE.getActiveId(), 'rhythm_demo_stop', {});
+        return;
+      }
+
+      // Bluetooth wants an explicit mode switch first; Wi-Fi does not expose one.
+      if (typeof DEVICE.api().enterRhythmMode === 'function') {
+        await DEVICE.api().enterRhythmMode(style, 4);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      logService(DEVICE.getActiveId(), 'rhythm_demo_start', { style });
+
+      // Simulate music: bass-heavy with random peaks and smooth decay
+      const targets = new Array(11).fill(0);
+      let beat = 0;
+
+      _rhythmDemoInterval = setInterval(async () => {
+        beat++;
+        if (beat % 8 === 0) {
+          targets[0] = 12 + Math.floor(Math.random() * 4);
+          targets[1] = 10 + Math.floor(Math.random() * 5);
+          targets[2] = 8 + Math.floor(Math.random() * 5);
+        }
+        for (let i = 3; i < 11; i++) {
+          if (Math.random() < 0.3) targets[i] = Math.floor(Math.random() * 12) + 3;
+        }
+        for (let i = 0; i < 11; i++) {
+          if (_rhythmDemoLevels[i] < targets[i]) {
+            _rhythmDemoLevels[i] = Math.min(15, _rhythmDemoLevels[i] + 3);
+          } else {
+            _rhythmDemoLevels[i] = Math.max(0, _rhythmDemoLevels[i] - 1);
+          }
+          targets[i] = Math.max(0, targets[i] - 1);
+        }
+        try {
+          await DEVICE.setRhythmLevelMode(style, [..._rhythmDemoLevels]);
+        } catch (e) {
+          clearInterval(_rhythmDemoInterval);
+          _rhythmDemoInterval = null;
+        }
+      }, 80); // ~12.5 fps
+    };
+
+    // ── Frame capture & slot save ──────────────────────────────────────────
+
+    /**
+     * Capture N frames from the current display renderer.
+     * Returns an array of Uint8Array (flat RGB bytes per frame).
+     */
+    /**
+     * Wait for at least one animation frame + delay, ensuring the renderer
+     * has had a chance to update its buffer before we read it.
+     */
+    function waitForRender(delayMs) {
+      return new Promise(resolve => {
+        const start = performance.now();
+        function tick() {
+          if (performance.now() - start >= delayMs) {
+            // One more rAF to guarantee the renderer painted
+            requestAnimationFrame(() => resolve());
+          } else {
+            requestAnimationFrame(tick);
+          }
+        }
+        requestAnimationFrame(tick);
+      });
+    }
+
+    async function captureEffectFrames(numFrames, frameDelayMs) {
+      const displayCard = document.getElementById('display-card');
+      if (!displayCard || !displayCard._renderer) throw new Error('No renderer available');
+
+      const renderer = displayCard._renderer;
+      const width = renderer.width;
+      const height = renderer.height;
+      const frames = [];
+      let uniqueCount = 0;
+      let lastHash = '';
+
+      for (let i = 0; i < numFrames; i++) {
+        // Wait using rAF so we capture after the renderer updates
+        await waitForRender(frameDelayMs);
+
+        // Read current pixels from renderer
+        const pixels = getRendererPixels(renderer);
+        const rgb = new Uint8Array(width * height * 3);
+        for (let j = 0; j < width * height; j++) {
+          const c = pixels[j] || '#000000';
+          const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(c);
+          if (m) {
+            rgb[j * 3]     = parseInt(m[1], 16);
+            rgb[j * 3 + 1] = parseInt(m[2], 16);
+            rgb[j * 3 + 2] = parseInt(m[3], 16);
+          }
+        }
+
+        // Quick hash to count unique frames (sample 20 pixels)
+        let hash = '';
+        for (let s = 0; s < 60; s += 3) {
+          const idx = Math.floor(s / 3 * width * height / 20) * 3;
+          hash += rgb[idx].toString(16) + rgb[idx+1].toString(16) + rgb[idx+2].toString(16);
+        }
+        if (hash !== lastHash) { uniqueCount++; lastHash = hash; }
+
+        frames.push(rgb);
+        if ((i + 1) % 10 === 0 || i === numFrames - 1) {
+          logService('capture', 'progress', {
+            frame: i + 1, total: numFrames, uniqueFrames: uniqueCount
+          });
+        }
+      }
+
+      logService('capture', 'done', { total: numFrames, unique: uniqueCount });
+      return { frames, width, height };
+    }
+
+    /**
+     * Capture the current effect, encode as GIF (or static image), and save to a device slot.
+     */
+    async function saveEffectToSlot(slot, type = 'gif', numFrames = 30, delayMs = 100) {
+      if (!BLE.isDeviceConnected()) throw new Error('BLE not connected');
+
+      const progress = (stage, detail) => logService('ble', 'save_slot_' + stage, detail);
+
+      if (type === 'image') {
+        // Static image: capture 1 frame, save as RGB (type 2)
+        const { frames, width, height } = await captureEffectFrames(1, 0);
+        const pixels = [];
+        const frame = frames[0];
+        for (let i = 0; i < frame.length; i += 3) {
+          const r = frame[i].toString(16).padStart(2, '0');
+          const g = frame[i + 1].toString(16).padStart(2, '0');
+          const b = frame[i + 2].toString(16).padStart(2, '0');
+          pixels.push(`#${r}${g}${b}`);
+        }
+        await BLE.saveImageToSlot(slot, pixels, width, height, progress);
+      } else {
+        // Animated GIF: capture N frames, encode, save as GIF (type 3)
+        logService('ble', 'save_slot_capturing', { frames: numFrames, delay: delayMs });
+        const { frames, width, height } = await captureEffectFrames(numFrames, delayMs);
+
+        logService('ble', 'save_slot_encoding', { frames: frames.length, width, height });
+        const gifDelay = Math.round(delayMs / 10); // GIF delay is centiseconds
+        const gifBytes = encodeGif(frames, width, height, gifDelay, 0);
+        logService('ble', 'save_slot_encoded', { gifSize: gifBytes.length });
+
+        if (BLE.isDeviceConnected()) {
+          await BLE.saveGifToSlot(slot, gifBytes, progress);
+        } else {
+          logService('save', 'no_ble', { message: 'BLE not connected — GIF encoded but not uploaded' });
+        }
+      }
+
+      logService('ble', 'save_slot_complete', { slot, type });
+    }
+
+    window.captureEffectFrames = captureEffectFrames;
+    window.saveEffectToSlot = saveEffectToSlot;
+
+    // ── Play gallery GIF on display card preview ────────────────────────
+
+    /**
+     * Decode a GIF into individual frames using the browser.
+     * Uses ImageDecoder API (Chrome 94+) with <img> fallback for single frame.
+     */
+    async function decodeGifFrames(url, targetW, targetH) {
+      const MAX_FRAMES = 120;
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+
+      // Try the ImageDecoder API (Chromium 94+) for proper multi-frame decoding
+      if (typeof ImageDecoder !== 'undefined') {
+        const decoder = new ImageDecoder({ data: await blob.arrayBuffer(), type: 'image/gif' });
+        await decoder.tracks.ready;
+        const track = decoder.tracks.selectedTrack;
+        const frameCount = Math.min(track.frameCount, MAX_FRAMES);
+
+        const frames = [];
+        const offCanvas = new OffscreenCanvas(targetW, targetH);
+        const ctx = offCanvas.getContext('2d', { willReadFrequently: true });
+        let avgDelay = 100;
+
+        for (let i = 0; i < frameCount; i++) {
+          const result = await decoder.decode({ frameIndex: i });
+          ctx.imageSmoothingEnabled = false;
+          ctx.clearRect(0, 0, targetW, targetH);
+          ctx.drawImage(result.image, 0, 0, targetW, targetH);
+
+          if (i === 0 && result.image.duration) {
+            avgDelay = result.image.duration / 1000; // microseconds → ms
+          }
+
+          const imageData = ctx.getImageData(0, 0, targetW, targetH).data;
+          const pixels = [];
+          for (let j = 0; j < targetW * targetH; j++) {
+            const r = imageData[j * 4], g = imageData[j * 4 + 1], b = imageData[j * 4 + 2], a = imageData[j * 4 + 3];
+            pixels.push(a < 128 ? '#000000' : '#' + r.toString(16).padStart(2,'0') + g.toString(16).padStart(2,'0') + b.toString(16).padStart(2,'0'));
+          }
+          frames.push(pixels);
+          result.image.close();
+        }
+        decoder.close();
+        return { frames, delay: Math.max(20, avgDelay) };
+      }
+
+      // Fallback: single-frame via <img> + canvas
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = targetW; c.height = targetH;
+          const ctx = c.getContext('2d');
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+          const d = ctx.getImageData(0, 0, targetW, targetH).data;
+          const pixels = [];
+          for (let j = 0; j < targetW * targetH; j++) {
+            const r = d[j*4], g = d[j*4+1], b = d[j*4+2], a = d[j*4+3];
+            pixels.push(a < 128 ? '#000000' : '#' + r.toString(16).padStart(2,'0') + g.toString(16).padStart(2,'0') + b.toString(16).padStart(2,'0'));
+          }
+          resolve({ frames: [pixels], delay: 100 });
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(blob);
+      });
+    }
+
+    async function playGifOnPreview(gifUrl) {
+      const displayCard = document.getElementById('display-card');
+      console.log('playGifOnPreview:', { hasCard: !!displayCard, hasRenderer: !!displayCard?._renderer, url: gifUrl });
+      if (!displayCard || !displayCard._renderer) {
+        console.warn('playGifOnPreview: No display renderer found');
+        return;
+      }
+
+      const renderer = displayCard._renderer;
+      console.log('playGifOnPreview: renderer', { width: renderer.width, height: renderer.height, hasPlayFrames: !!renderer.playFrames });
+
+      try {
+        const { frames, delay } = await decodeGifFrames(gifUrl, renderer.width, renderer.height);
+        console.log('playGifOnPreview: decoded', frames.length, 'frames, delay:', delay);
+
+        renderer.stopFrames?.();
+        renderer.stop();
+
+        if (renderer.playFrames) {
+          renderer.playFrames(frames, delay);
+          console.log('playGifOnPreview: playFrames started');
+        } else {
+          console.warn('playGifOnPreview: no playFrames, showing first frame only');
+          renderer.setData(frames[0]);
+          renderer.setEffect('fixed', 50);
+          renderer.renderStatic();
+        }
+      } catch (e) {
+        console.error('playGifOnPreview error:', e);
+      }
+    }
+
+    window.playGifOnPreview = playGifOnPreview;
+
+    // Debug: test sending a vendor gallery GIF to slot
+    // Usage from console: testGalleryUpload('96x16', 'yk_anim_en_16x96_1.gif', 1)
+    window.testGalleryUpload = async function(size, filename, slot = 1) {
+      const galleryBase = `${window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1)}gallery`;
+      const url = `${galleryBase}/${size}/${filename}`;
+      console.log('Fetching:', url);
+      const resp = await fetch(url);
+      const gifBytes = new Uint8Array(await resp.arrayBuffer());
+      console.log('GIF size:', gifBytes.length, 'bytes');
+      console.log('GIF header:', Array.from(gifBytes.slice(0, 6)).map(b => String.fromCharCode(b)).join(''));
+      await BLE.saveGifToSlot(slot, gifBytes, (stage, detail) => {
+        console.log('Upload:', stage, detail);
+      });
+    };
+
+    // Live-update the brightness readout, and push the value once the slider
+    // settles. Applies to whichever transport is active.
+    $id('device-brightness').addEventListener('input', (e) => {
+      $id('device-brightness-value').textContent = e.target.value;
+    });
+    $id('device-brightness').addEventListener('change', () => {
+      if (DEVICE.isConnected()) deviceSetBrightness();
+    });
+
+    // Auto-apply the other selects too, but never mid-upload.
+    const autoApply = [
+      ['device-clock-style', () => deviceSetClockMode()],
+      ['device-orientation', () => deviceSetOrientation()],
+      ['device-rhythm-style', () => deviceRhythmDemo()],
+    ];
+    autoApply.forEach(([id, fn]) => {
+      $id(id).addEventListener('change', () => {
+        if (DEVICE.isConnected() && !isSendingPixels) fn();
+      });
+    });
+
+    // Flag to prevent mode changes while sending pixels
+    let isSendingPixels = false;
+
+    /** The display card's renderer, or null (with a log line) if not ready. */
+    function getRenderer() {
+      const card = document.getElementById('display-card');
+      if (!card || !card._renderer) {
+        logService(DEVICE.getActiveId(), 'error', { message: 'No renderer available' });
+        return null;
+      }
+      return card._renderer;
+    }
+
+    // Helper function to get pixels from renderer
+    // Ambient effects write to buffer (RGB arrays), text effects write to _colorPixels (hex strings)
+    function getRendererPixels(renderer) {
+      // Check if buffer has RGB data from ambient effects
+      if (renderer.buffer && renderer.buffer.length > 0) {
+        const firstPixel = renderer.buffer[0];
+        // If buffer contains RGB arrays, convert to hex strings
+        if (Array.isArray(firstPixel) && firstPixel.length >= 3) {
+          return renderer.buffer.map(rgb => {
+            if (Array.isArray(rgb) && rgb.length >= 3) {
+              const r = Math.floor(rgb[0]).toString(16).padStart(2, '0');
+              const g = Math.floor(rgb[1]).toString(16).padStart(2, '0');
+              const b = Math.floor(rgb[2]).toString(16).padStart(2, '0');
+              return `#${r}${g}${b}`;
+            }
+            return '#000000';
+          });
+        }
+      }
+      // Fallback to _colorPixels (for text effects)
+      return renderer._colorPixels || [];
+    }
+
+    window.deviceSendPreview = async function() {
+      const renderer = getRenderer();
+      if (!renderer) return;
+      const { width, height } = renderer;
+      const pixels = getRendererPixels(renderer);
+      if (pixels.length === 0) {
+        logService(DEVICE.getActiveId(), 'error', { message: 'No pixels to send' });
+        return;
+      }
+      const lit = pixels.filter(p => p && !/^#(000000|000|111111|111|050505)$/.test(p)).length;
+      logService(DEVICE.getActiveId(), 'send_preview', { width, height, pixelCount: pixels.length, nonBlackCount: lit });
+      if (lit === 0) {
+        logService(DEVICE.getActiveId(), 'warning', { message: 'No colored pixels to send - all black!' });
+        return;
+      }
+      try {
+        isSendingPixels = true;
+        await DEVICE.sendImageCamera(pixels, width, height);
+        logService(DEVICE.getActiveId(), 'send_preview_complete', { sentPixels: lit, method: 'camera' });
+      } catch (e) {
+        logService(DEVICE.getActiveId(), 'error', { message: e.message });
+      } finally {
+        isSendingPixels = false;
+      }
+    };
+
+    // Bluetooth-only: walks the slow DIY pixel path instead of a camera frame.
+    window.deviceSendDiyPixels = async function() {
+      const renderer = getRenderer();
+      if (!renderer) return;
+      const pixels = getRendererPixels(renderer);
+      if (pixels.length === 0) {
+        logService('ble', 'error', { message: 'No pixels to send' });
+        return;
+      }
+      try {
+        isSendingPixels = true;
+        await BLE.sendPixels(pixels, renderer.width, renderer.height);
+        logService('ble', 'send_diy_complete', { message: 'DIY pixels sent!' });
+      } catch (e) {
+        logService('ble', 'error', { message: e.message });
+      } finally {
+        isSendingPixels = false;
+      }
+    };
+
+    window.deviceTestPattern = async function() {
+      if (!DEVICE.isConnected()) {
+        logService(DEVICE.getActiveId(), 'error', { message: 'Not connected' });
+        return;
+      }
+      logService(DEVICE.getActiveId(), 'test_pattern', { message: 'Sending 3 pixels...' });
+      try {
+        await DEVICE.enterDiyMode();
+        await new Promise(r => setTimeout(r, 300));
+        const dots = [[0, 0, 255, 0, 0], [1, 0, 0, 255, 0], [2, 0, 0, 0, 255]];
+        for (const [x, y, r, g, b] of dots) {
+          await DEVICE.setPixel(x, y, r, g, b);
+          await new Promise(res => setTimeout(res, 150));
+        }
+        logService(DEVICE.getActiveId(), 'test_pattern_complete', { message: 'R-G-B pixels sent at top-left.' });
+      } catch (e) {
+        logService(DEVICE.getActiveId(), 'error', { message: e.message });
+      }
+    };
+
+    window.deviceTestCamera = async function() {
+      if (!DEVICE.isConnected()) {
+        logService(DEVICE.getActiveId(), 'error', { message: 'Not connected' });
+        return;
+      }
+      try {
+        await BLE.testCameraProtocol();
+        logService('ble', 'test_camera_complete', { message: 'Camera test sent.' });
+      } catch (e) {
+        logService('ble', 'error', { message: e.message });
+      }
+    };
+
+    function updateStreamButton(isStreaming) {
+      const btn = $id('device-stream-btn');
+      const status = $id('device-stream-status');
+      btn.textContent = isStreaming ? '⏹ Stop Stream' : '▶ Stream to Device';
+      btn.style.background = isStreaming ? '#a00' : '#0aa';
+      status.textContent = isStreaming ? 'Streaming...' : '';
+      status.style.color = isStreaming ? '#4f4' : '#888';
+    }
+
+    window.deviceToggleStream = async function() {
+      if (!DEVICE.isConnected()) {
+        logService(DEVICE.getActiveId(), 'error', { message: 'Not connected' });
+        return;
+      }
+      if (DEVICE.isAnimationRunning()) {
+        DEVICE.stopAnimation();
+        updateStreamButton(false);
+        logService(DEVICE.getActiveId(), 'stream_stopped', {});
+        return;
+      }
+      const renderer = getRenderer();
+      if (!renderer) return;
+      const fps = parseInt($id('device-stream-fps').value) || 3;
+      logService(DEVICE.getActiveId(), 'stream_starting', { width: renderer.width, height: renderer.height, fps });
+      try {
+        updateStreamButton(true);
+        await DEVICE.streamAnimation(() => getRendererPixels(renderer), renderer.width, renderer.height, fps);
+      } catch (e) {
+        logService(DEVICE.getActiveId(), 'stream_error', { message: e.message });
+      }
+      updateStreamButton(false);
+    };
+    // Debug function to check renderer state
+    window.debugRenderer = function() {
+      const displayCard = document.getElementById('display-card');
+      const renderer = displayCard?._renderer;
+
+      if (!renderer) {
+        console.log('No renderer found');
+        logService('debug', 'renderer', { error: 'No renderer found' });
+        return;
+      }
+
+      const info = {
+        width: renderer.width,
+        height: renderer.height,
+        pixelCount: renderer._colorPixels?.length || 0,
+        extendedWidth: renderer.extendedWidth,
+        effect: renderer._currentEffect,
+        container: !!renderer._container
+      };
+
+      // Sample some pixels
+      const pixels = getRendererPixels(renderer);
+      const nonBlack = pixels.filter(p => p && p !== '#000000' && p !== '#000' && p !== '#111' && p !== '#111111');
+      info.nonBlackPixels = nonBlack.length;
+      info.sampleNonBlack = nonBlack.slice(0, 5);
+
+      // Include BLE connection + notify state
+      if (BLE.isDeviceConnected()) {
+        info.ble = BLE.getConnectionState();
+        info.bleNotifyLog = BLE.getNotifyLog(5);
+      }
+
+      console.log('Renderer state:', info);
+      logService('debug', 'renderer', info);
+      return info;
+    };
+    // Log ACK/notify frames from whichever transport reports them.
+    DEVICE.addEventListener('notify', (evt) => {
+      logService(DEVICE.getActiveId(), 'notify', { hex: evt.hex, length: evt.data.length });
+    });
+
+    // Any transport dropping its connection resets the shared panel.
+    DEVICE.addEventListener('disconnect', () => {
+      if (DEVICE.isAnimationRunning()) {
+        DEVICE.stopAnimation();
+        updateStreamButton(false);
+      }
+      syncTransportUI();
+    });
+
+    // Start on a transport that is actually usable in this browser.
+    if (!DEVICE.getActive().isAvailable()) {
+      const fallback = DEVICE.listTransports().find(t => t.isAvailable());
+      if (fallback) {
+        DEVICE.setActive(fallback.id);
+        $id('transport-select').value = fallback.id;
+      }
+    }
+    syncTransportUI();
+    // =========================================================================
+
+    // Load the built bundle (IIFE) which registers all custom elements.
+    // We can't import ./src/index.js directly because it uses bare specifiers
+    // like 'react-pixel-display/core' that browsers can't resolve without a bundler.
+    // Run `npm run build` to rebuild if you change source files.
+    const bundleScript = document.createElement('script');
+    bundleScript.src = './ipixel-display-card.js';
+    bundleScript.onload = () => {
+      console.log('iPIXEL Cards bundle loaded');
+
+      // Wait a tick for custom elements to register
+      requestAnimationFrame(() => {
+        const displayCard = document.getElementById('display-card');
+        const textCard = document.getElementById('text-card');
+        const controlsCard = document.getElementById('controls-card');
+        const playlistCard = document.getElementById('playlist-card');
+        const scheduleCard = document.getElementById('schedule-card');
+        const editorCard = document.getElementById('editor-card');
+        const galleryCard = document.getElementById('gallery-card');
+
+        const config = {
+          entity: 'text.ipixel_preview_text_display',
+          name: 'iPIXEL Preview'
+        };
+
+        [displayCard, textCard, controlsCard, playlistCard, scheduleCard, editorCard, galleryCard].forEach(card => {
+          if (card) {
+            card.setConfig(config);
+            card.hass = mockHass;
+          }
+        });
+
+        console.log('Cards initialized');
+      });
+    };
+    bundleScript.onerror = (err) => {
+      console.error('Failed to load cards bundle:', err);
+      document.body.innerHTML += `<div style="color:red;padding:20px;">
+        Error loading cards bundle. Run <code>npm run build</code> in the www/ directory first.
+      </div>`;
+    };
+    document.head.appendChild(bundleScript);
+  </script>
+</body>
+</html>

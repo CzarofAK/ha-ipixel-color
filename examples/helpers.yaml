@@ -1,0 +1,213 @@
+# iPIXEL Color - Helper Configurations
+# =====================================
+#
+# These helpers support the sample automations. Add to your configuration.yaml
+# or create via the UI under Settings > Devices & Services > Helpers.
+
+
+# =============================================================================
+# INPUT HELPERS
+# =============================================================================
+
+# For notification display automation
+input_text:
+  ipixel_notification:
+    name: iPIXEL Notification
+    max: 100
+    initial: ""
+
+  ipixel_custom_text:
+    name: iPIXEL Custom Text
+    max: 100
+    initial: ""
+
+# For tracking display rotation state
+input_number:
+  ipixel_display_index:
+    name: iPIXEL Display Index
+    min: 0
+    max: 20
+    step: 1
+    initial: 0
+    mode: box
+
+# For enabling/disabling the display
+input_boolean:
+  ipixel_enabled:
+    name: iPIXEL Display Enabled
+    initial: true
+    icon: mdi:led-on
+
+
+# =============================================================================
+# EXAMPLE SENSORS (if not already available)
+# =============================================================================
+
+# Daily Quote - using ZenQuotes API (free)
+# Add this to your configuration.yaml
+#
+# rest:
+#   - resource: https://zenquotes.io/api/today
+#     scan_interval: 86400  # Once per day
+#     sensor:
+#       - name: "Daily Quote"
+#         value_template: "{{ value_json[0].q[:100] }}"
+#         json_attributes_path: "$[0]"
+#         json_attributes:
+#           - q
+#           - a
+#           - h
+
+
+# RSS Feed Reader - for news headlines
+# Requires the Feedreader integration
+# Add to configuration.yaml:
+#
+# feedreader:
+#   urls:
+#     - https://news.google.com/rss
+#     - https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
+#   scan_interval:
+#     minutes: 30
+
+
+# =============================================================================
+# SCRIPTS FOR COMMON OPERATIONS
+# =============================================================================
+
+script:
+  # Quick notification script - call from other automations
+  ipixel_notify:
+    alias: "iPIXEL Show Notification"
+    description: "Display a temporary notification on iPIXEL"
+    mode: queued
+    max: 5
+    fields:
+      message:
+        description: "The message to display"
+        example: "Door opened!"
+        required: true
+        selector:
+          text:
+      color:
+        description: "Text color in hex (without #)"
+        example: "ff0000"
+        default: "ffff00"
+        selector:
+          text:
+      duration:
+        description: "How long to show (seconds)"
+        example: 10
+        default: 10
+        selector:
+          number:
+            min: 1
+            max: 300
+    sequence:
+      - service: ipixel_color.display_text
+        target:
+          entity_id: light.ipixel_color  # Change to your entity
+        data:
+          text: "{{ message }}"
+          text_color: "{{ color | default('ffff00') }}"
+      - delay:
+          seconds: "{{ duration | default(10) }}"
+
+  # Show weather summary
+  ipixel_weather:
+    alias: "iPIXEL Show Weather"
+    description: "Display current weather on iPIXEL"
+    sequence:
+      - variables:
+          weather_state: "{{ states('weather.home') }}"
+          icons:
+            sunny: "☀"
+            clear: "☀"
+            partlycloudy: "⛅"
+            cloudy: "☁"
+            rainy: "🌧"
+            snowy: "🌨"
+          icon: "{{ icons.get(weather_state, '🌡') }}"
+          temp: "{{ state_attr('weather.home', 'temperature') | round(0) }}"
+      - service: ipixel_color.display_text
+        target:
+          entity_id: light.ipixel_color
+        data:
+          text: "{{ now().strftime('%H:%M') }} {{ icon }}{{ temp }}°"
+          text_color: "00a0ff"
+
+  # Show clock mode
+  ipixel_clock:
+    alias: "iPIXEL Clock Mode"
+    description: "Switch iPIXEL to clock display"
+    fields:
+      style:
+        description: "Clock style (0-8)"
+        default: 1
+        selector:
+          number:
+            min: 0
+            max: 8
+    sequence:
+      - service: ipixel_color.set_clock_mode
+        target:
+          entity_id: light.ipixel_color
+        data:
+          style: "{{ style | default(1) }}"
+          format_24: true
+          show_date: true
+
+  # Clear and turn off
+  ipixel_off:
+    alias: "iPIXEL Turn Off"
+    description: "Clear display and turn off"
+    sequence:
+      - service: ipixel_color.clear_display
+        target:
+          entity_id: light.ipixel_color
+      - service: light.turn_off
+        target:
+          entity_id: light.ipixel_color
+
+
+# =============================================================================
+# LOVELACE CARD EXAMPLE
+# =============================================================================
+#
+# Add this card to your dashboard for quick control:
+#
+# type: vertical-stack
+# cards:
+#   - type: light
+#     entity: light.ipixel_color
+#     name: iPIXEL Display
+#
+#   - type: entities
+#     entities:
+#       - entity: input_text.ipixel_custom_text
+#       - entity: input_boolean.ipixel_enabled
+#
+#   - type: horizontal-stack
+#     cards:
+#       - type: button
+#         name: Weather
+#         icon: mdi:weather-cloudy
+#         tap_action:
+#           action: call-service
+#           service: script.ipixel_weather
+#
+#       - type: button
+#         name: Clock
+#         icon: mdi:clock-outline
+#         tap_action:
+#           action: call-service
+#           service: script.ipixel_clock
+#
+#       - type: button
+#         name: Clear
+#         icon: mdi:eraser
+#         tap_action:
+#           action: call-service
+#           service: ipixel_color.clear_display
+#           target:
+#             entity_id: light.ipixel_color

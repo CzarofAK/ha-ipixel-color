@@ -13,7 +13,10 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .api import iPIXELAPI, iPIXELConnectionError, iPIXELTimeoutError
 from .bluetooth.scanner import discover_ipixel_devices_ha
-from .const import DOMAIN, CONF_ADDRESS, CONF_KEEP_CONNECTED, DEFAULT_KEEP_CONNECTED
+from .const import (
+    DOMAIN, CONF_ADDRESS, CONF_KEEP_CONNECTED, DEFAULT_KEEP_CONNECTED,
+    OPT_OVERRIDE_DIMENSIONS, OPT_PANEL_WIDTH, OPT_PANEL_HEIGHT,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,8 +41,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     
     try:
         # Test connection
-        if not await api.connect():
-            raise CannotConnect
+        await api.connect()
         
         # Disconnect after successful test
         await api.disconnect()
@@ -292,12 +294,26 @@ class iPIXELOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        current = self.config_entry.options.get(
-            CONF_KEEP_CONNECTED, DEFAULT_KEEP_CONNECTED
-        )
+        cur = self.config_entry.options
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
-                {vol.Required(CONF_KEEP_CONNECTED, default=current): bool}
+                {
+                    vol.Required(
+                        CONF_KEEP_CONNECTED,
+                        default=cur.get(CONF_KEEP_CONNECTED, DEFAULT_KEEP_CONNECTED),
+                    ): bool,
+                    # dimension override (from bastooky/ha-ipixel-color)
+                    vol.Optional(
+                        OPT_OVERRIDE_DIMENSIONS,
+                        default=cur.get(OPT_OVERRIDE_DIMENSIONS, False),
+                    ): bool,
+                    vol.Optional(
+                        OPT_PANEL_WIDTH, default=cur.get(OPT_PANEL_WIDTH, 0)
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=512)),
+                    vol.Optional(
+                        OPT_PANEL_HEIGHT, default=cur.get(OPT_PANEL_HEIGHT, 0)
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=512)),
+                }
             ),
         )

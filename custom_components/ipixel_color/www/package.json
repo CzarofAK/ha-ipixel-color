@@ -1,0 +1,35 @@
+{
+  "name": "ipixel-cards",
+  "version": "2.11.1",
+  "description": "Lovelace cards for iPIXEL Color LED displays",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.js --bundle --minify --format=iife --outfile=ipixel-display-card.js",
+    "build:dev": "esbuild src/index.js --bundle --format=iife --outfile=ipixel-display-card.js --sourcemap",
+    "watch": "esbuild src/index.js --bundle --format=iife --outfile=ipixel-display-card.js --watch",
+    "preview": "python3 -m http.server 8080",
+    "dev": "concurrently \"npm run watch\" \"npm run preview\""
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  },
+  "files": [
+    "ipixel-display-card.js"
+  ],
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "custom-card",
+    "ipixel",
+    "led-display"
+  ],
+  "author": "iPIXEL Color Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cagcoach/ha-ipixel-color"
+  },
+  "dependencies": {
+    "react-pixel-display": "^1.0.0"
+  }
+}

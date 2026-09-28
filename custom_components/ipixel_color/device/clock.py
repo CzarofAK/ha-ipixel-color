@@ -41,7 +41,8 @@ def make_clock_mode_command(
         raise ImportError("pypixelcolor library is not installed")
 
     if not date:
-        date = dt_util.now().strftime("%d/%m/%Y")  # HA local date
+        # HA local date; pypixelcolor expects a 2-digit year (DD/MM/YY)
+        date = dt_util.now().strftime("%d/%m/%y")
 
     # Call pypixelcolor's set_clock_mode function
     # It returns a SendPlan object with windows containing the command data

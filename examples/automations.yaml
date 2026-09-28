@@ -1,0 +1,606 @@
+# iPIXEL Color - Sample Home Assistant Automations
+# ================================================
+#
+# These examples show how to use the iPIXEL Color integration with
+# Home Assistant automations. Adapt entity_id values to match your setup.
+#
+# Available services:
+#   - ipixel_color.display_text: Display text with colors and effects
+#   - ipixel_color.display_image: Display PNG/JPG images
+#   - ipixel_color.display_gif: Display animated GIFs
+#   - ipixel_color.set_clock_mode: Show clock display
+#   - ipixel_color.set_brightness: Adjust brightness (1-100)
+#   - ipixel_color.clear_display: Clear the screen
+#   - light.turn_on/off: Control power state
+#
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# 1. WEATHER DISPLAY WITH ICONS
+# -----------------------------------------------------------------------------
+# Shows current time, weather icon, and temperature
+# Updates every minute when display is on
+
+- alias: "iPIXEL Weather Display"
+  id: ipixel_weather_display
+  description: "Display weather info with emoji icons on iPIXEL"
+  mode: restart
+
+  triggers:
+    - trigger: time_pattern
+      minutes: "/1"  # Every minute
+    - trigger: state
+      entity_id: weather.home  # Update when weather changes
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color  # Replace with your entity
+      state: "on"
+
+  actions:
+    - variables:
+        weather_state: "{{ states('weather.home') }}"
+        weather_icon: >-
+          {% set icons = {
+            'sunny': '☀',
+            'clear': '☀',
+            'clear-night': '🌙',
+            'partlycloudy': '⛅',
+            'cloudy': '☁',
+            'fog': '🌫',
+            'rainy': '🌧',
+            'pouring': '🌧',
+            'lightning-rainy': '⛈',
+            'lightning': '🌩',
+            'snowy': '🌨',
+            'snowy-rainy': '🌧🌨',
+            'hail': '🧊',
+            'windy': '🍃',
+            'windy-variant': '🍃',
+            'exceptional': '⚠️'
+          } %}
+          {{ icons.get(weather_state, '🌡') }}
+        temp_outside: "{{ state_attr('weather.home', 'temperature') | round(0) }}"
+        display_text: >-
+          {{ now().strftime('%H:%M') }} {{ weather_icon }}{{ temp_outside }}°
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color  # Replace with your entity
+      data:
+        text: "{{ display_text }}"
+        text_color: "00a0ff"  # Light blue
+        bg_color: "000000"
+
+
+# -----------------------------------------------------------------------------
+# 2. HOURLY WEATHER FORECAST
+# -----------------------------------------------------------------------------
+# Shows next 5 hours forecast with weather icons
+
+- alias: "iPIXEL Hourly Forecast"
+  id: ipixel_hourly_forecast
+  description: "Display hourly weather forecast"
+  mode: single
+
+  triggers:
+    - trigger: time_pattern
+      hours: "/1"  # Every hour
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    - action: weather.get_forecasts
+      data:
+        type: hourly
+      target:
+        entity_id: weather.home
+      response_variable: weather_forecast
+
+    - variables:
+        hourly_text: >-
+          {% set forecast = weather_forecast['weather.home'].forecast %}
+          {% set now_hour = now().hour %}
+          {% set ns = namespace(output='🌡 ') %}
+          {% set count = 0 %}
+          {% set icons = {
+            'sunny': '☀', 'clear': '☀', 'clear-night': '🌙',
+            'partlycloudy': '⛅', 'cloudy': '☁', 'fog': '🌫',
+            'rainy': '🌧', 'pouring': '🌧', 'lightning-rainy': '⛈',
+            'lightning': '🌩', 'snowy': '🌨', 'snowy-rainy': '🌧🌨',
+            'hail': '🧊', 'windy': '🍃', 'windy-variant': '🍃'
+          } %}
+          {% for hour in forecast %}
+            {% if count < 5 %}
+              {% set hour_time = as_timestamp(hour.datetime) | timestamp_custom('%H') | int %}
+              {% if hour_time > now_hour %}
+                {% set icon = icons.get(hour.condition, '⚠️') %}
+                {% set ns.output = ns.output ~ hour_time ~ 'h' ~ icon ~ (hour.temperature|round) ~ '° ' %}
+                {% set count = count + 1 %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.output }}
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ hourly_text }}"
+        text_color: "ffffff"
+
+
+# -----------------------------------------------------------------------------
+# 3. DAILY WEATHER FORECAST
+# -----------------------------------------------------------------------------
+# Shows 5-day forecast with weekday abbreviations
+
+- alias: "iPIXEL Daily Forecast"
+  id: ipixel_daily_forecast
+  description: "Display 5-day weather forecast"
+  mode: single
+
+  triggers:
+    - trigger: time
+      at: "08:00:00"  # Show at 8 AM
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    - action: weather.get_forecasts
+      data:
+        type: daily
+      target:
+        entity_id: weather.home
+      response_variable: weather_forecast
+
+    - variables:
+        daily_text: >-
+          {% set forecast = weather_forecast['weather.home'].forecast %}
+          {% set weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+          {% set icons = {
+            'sunny': '☀', 'clear': '☀', 'partlycloudy': '⛅',
+            'cloudy': '☁', 'rainy': '🌧', 'snowy': '🌨'
+          } %}
+          {% set ns = namespace(output='') %}
+          {% for i in range(0, 5) %}
+            {% set day = forecast[i] %}
+            {% set wd = weekdays[(as_timestamp(day.datetime) | timestamp_custom('%w') | int - 1) % 7] %}
+            {% set icon = icons.get(day.condition, '🌡') %}
+            {% set ns.output = ns.output ~ wd ~ icon ~ (day.temperature|round) ~ '° ' %}
+          {% endfor %}
+          {{ ns.output }}
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ daily_text }}"
+        text_color: "ffcc00"  # Gold
+
+
+# -----------------------------------------------------------------------------
+# 4. NEWS HEADLINES DISPLAY
+# -----------------------------------------------------------------------------
+# Cycles through RSS feed headlines
+# Requires a Feedreader sensor integration
+
+- alias: "iPIXEL News Headlines"
+  id: ipixel_news_headlines
+  description: "Display cycling news headlines"
+  mode: restart
+
+  triggers:
+    - trigger: time_pattern
+      minutes: "/5"  # Every 5 minutes
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+    - condition: template
+      value_template: "{{ state_attr('sensor.news_feed', 'entries') | length > 0 }}"
+
+  actions:
+    - variables:
+        news_entries: "{{ state_attr('sensor.news_feed', 'entries') or [] }}"
+        # Cycle through headlines using minute mod count
+        headline_index: "{{ now().minute % (news_entries | length) }}"
+        headline: "{{ news_entries[headline_index].title if news_entries else 'No news' }}"
+        display_text: "📰 {{ headline[:90] }}{{ '...' if headline|length > 90 else '' }}"
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ display_text }}"
+        text_color: "ff6600"  # Orange
+
+
+# -----------------------------------------------------------------------------
+# 5. CALENDAR EVENTS DISPLAY
+# -----------------------------------------------------------------------------
+# Shows upcoming calendar events
+
+- alias: "iPIXEL Calendar Events"
+  id: ipixel_calendar_events
+  description: "Display upcoming calendar events"
+  mode: single
+
+  triggers:
+    - trigger: state
+      entity_id: calendar.personal
+    - trigger: time_pattern
+      minutes: "/15"
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+    - condition: template
+      value_template: >-
+        {{ state_attr('calendar.personal', 'message') or
+           state_attr('calendar.personal', 'summary') }}
+
+  actions:
+    - variables:
+        event_title: >-
+          {{ state_attr('calendar.personal', 'message') or
+             state_attr('calendar.personal', 'summary') or 'No events' }}
+        event_time: >-
+          {% set start = state_attr('calendar.personal', 'start_time') %}
+          {{ as_timestamp(start) | timestamp_custom('%H:%M') if start else '' }}
+        display_text: "📅 {{ event_time ~ ' ' if event_time else '' }}{{ event_title }}"
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ display_text[:100] }}"
+        text_color: "00ff00"  # Green
+
+
+# -----------------------------------------------------------------------------
+# 6. SYSTEM STATUS MONITORING
+# -----------------------------------------------------------------------------
+# Shows server status, disk space, and updates available
+
+- alias: "iPIXEL System Status"
+  id: ipixel_system_status
+  description: "Display system/server status alerts"
+  mode: restart
+
+  triggers:
+    - trigger: time_pattern
+      minutes: "/10"  # Every 10 minutes
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    - variables:
+        # Customize these entity IDs for your servers
+        servers:
+          - name: "server1"
+            disk_sensor: "sensor.server1_disk_use_percent"
+            updates_sensor: "sensor.server1_updates"
+          - name: "server2"
+            disk_sensor: "sensor.server2_disk_use_percent"
+            updates_sensor: "sensor.server2_updates"
+
+        status_text: >-
+          {% set ns = namespace(alerts=[]) %}
+          {% for server in servers %}
+            {% set disk = states(server.disk_sensor) | float(0) %}
+            {% set updates = states(server.updates_sensor) | int(0) %}
+            {% if disk > 90 %}
+              {% set ns.alerts = ns.alerts + [server.name ~ ':💾' ~ disk|round ~ '%'] %}
+            {% endif %}
+            {% if updates > 0 %}
+              {% set ns.alerts = ns.alerts + [server.name ~ ':📦' ~ updates] %}
+            {% endif %}
+          {% endfor %}
+          {% if ns.alerts %}
+            🖥 {{ ns.alerts | join(' ') }}
+          {% else %}
+            ✅ All systems normal
+          {% endif %}
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ status_text }}"
+        text_color: "{{ 'ff0000' if '💾' in status_text or '📦' in status_text else '00ff00' }}"
+
+
+# -----------------------------------------------------------------------------
+# 7. NETWORK SPEED DISPLAY
+# -----------------------------------------------------------------------------
+# Shows Speedtest results
+
+- alias: "iPIXEL Network Speed"
+  id: ipixel_network_speed
+  description: "Display network speed test results"
+  mode: single
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.speedtest_download
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    - variables:
+        download: "{{ states('sensor.speedtest_download') | int(0) }}"
+        upload: "{{ states('sensor.speedtest_upload') | int(0) }}"
+        ping: "{{ states('sensor.speedtest_ping') | int(0) }}"
+        display_text: "⬇{{ download }}mb/s ⬆{{ upload }}mb/s ⏱{{ ping }}ms"
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ display_text }}"
+        text_color: "00ffff"  # Cyan
+
+
+# -----------------------------------------------------------------------------
+# 8. THERMOSTAT STATUS
+# -----------------------------------------------------------------------------
+# Shows indoor temperature and heating status
+
+- alias: "iPIXEL Thermostat Status"
+  id: ipixel_thermostat_status
+  description: "Display thermostat and indoor temperature"
+  mode: restart
+
+  triggers:
+    - trigger: state
+      entity_id: climate.thermostat
+    - trigger: state
+      entity_id: sensor.indoor_temperature
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    - variables:
+        hvac_action: "{{ state_attr('climate.thermostat', 'hvac_action') }}"
+        current_temp: "{{ states('sensor.indoor_temperature') | float | round(1) }}"
+        target_temp: "{{ state_attr('climate.thermostat', 'temperature') | float | round(0) }}"
+        heating_icon: "{{ '🔥' if hvac_action == 'heating' else '❄️' if hvac_action == 'cooling' else '🌡' }}"
+        display_text: "{{ heating_icon }}{{ current_temp }}° → {{ target_temp }}°"
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ display_text }}"
+        text_color: "{{ 'ff4400' if hvac_action == 'heating' else '0088ff' if hvac_action == 'cooling' else 'ffffff' }}"
+
+
+# -----------------------------------------------------------------------------
+# 9. DAILY QUOTE
+# -----------------------------------------------------------------------------
+# Shows an inspirational quote
+
+- alias: "iPIXEL Daily Quote"
+  id: ipixel_daily_quote
+  description: "Display daily inspirational quote"
+  mode: single
+
+  triggers:
+    - trigger: time
+      at: "07:00:00"
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    - variables:
+        quote: "{{ state_attr('sensor.daily_quote', 'q') or 'Stay inspired!' }}"
+        author: "{{ state_attr('sensor.daily_quote', 'a') or '' }}"
+        display_text: "💭 {{ quote }}{{ ' — ' ~ author if author else '' }}"
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ display_text[:100] }}"
+        text_color: "cc88ff"  # Purple
+
+
+# -----------------------------------------------------------------------------
+# 10. ROTATING INFO DISPLAY
+# -----------------------------------------------------------------------------
+# Cycles through different content types every minute
+# This is the master automation that combines multiple info sources
+
+- alias: "iPIXEL Rotating Display"
+  id: ipixel_rotating_display
+  description: "Cycle through weather, news, calendar, and status"
+  mode: restart
+
+  triggers:
+    - trigger: time_pattern
+      minutes: "/1"
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    - variables:
+        # Use minute to determine what to show (0-5 cycle)
+        display_mode: "{{ now().minute % 6 }}"
+
+        # Base time display (always shown)
+        time_str: "{{ now().strftime('%H:%M') }}"
+
+        # Weather info
+        weather_state: "{{ states('weather.home') }}"
+        weather_icons: >-
+          {% set icons = {'sunny':'☀','clear':'☀','partlycloudy':'⛅','cloudy':'☁','rainy':'🌧','snowy':'🌨'} %}
+          {{ icons.get(weather_state, '🌡') }}
+        temp: "{{ state_attr('weather.home', 'temperature') | round(0) }}"
+
+        # Choose content based on mode
+        content: >-
+          {% if display_mode == 0 %}
+            {{ time_str }} {{ weather_icons }}{{ temp }}°
+          {% elif display_mode == 1 %}
+            {% set news = state_attr('sensor.news_feed', 'entries') %}
+            📰 {{ news[0].title[:60] if news else 'No news' }}
+          {% elif display_mode == 2 %}
+            {% set event = state_attr('calendar.personal', 'message') %}
+            📅 {{ event[:60] if event else 'No events' }}
+          {% elif display_mode == 3 %}
+            {% set download = states('sensor.speedtest_download')|int(0) %}
+            {% set upload = states('sensor.speedtest_upload')|int(0) %}
+            ⬇{{ download }}mb ⬆{{ upload }}mb
+          {% elif display_mode == 4 %}
+            {% set indoor = states('sensor.indoor_temperature')|float|round(1) %}
+            {% set hvac = state_attr('climate.thermostat', 'hvac_action') %}
+            {{ '🔥' if hvac == 'heating' else '🌡' }}{{ indoor }}°
+          {% else %}
+            {{ time_str }} {{ weather_icons }}{{ temp }}°
+          {% endif %}
+
+        # Color based on content type
+        color: >-
+          {% if display_mode == 0 %}00a0ff{% elif display_mode == 1 %}ff6600
+          {% elif display_mode == 2 %}00ff00{% elif display_mode == 3 %}00ffff
+          {% elif display_mode == 4 %}ff4400{% else %}ffffff{% endif %}
+
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ content }}"
+        text_color: "{{ color }}"
+
+
+# -----------------------------------------------------------------------------
+# 11. NOTIFICATION DISPLAY
+# -----------------------------------------------------------------------------
+# Shows notifications from other automations or scripts
+# Use input_text helper to set the message
+
+- alias: "iPIXEL Notification Display"
+  id: ipixel_notification_display
+  description: "Display custom notifications"
+  mode: queued
+  max: 5
+
+  triggers:
+    - trigger: state
+      entity_id: input_text.ipixel_notification
+
+  conditions:
+    - condition: template
+      value_template: >-
+        {{ states('input_text.ipixel_notification') not in ['', 'unknown', 'unavailable'] }}
+
+  actions:
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "{{ states('input_text.ipixel_notification') }}"
+        text_color: "ffff00"  # Yellow for notifications
+
+    # Keep notification visible for 30 seconds
+    - delay:
+        seconds: 30
+
+    # Clear the notification input
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.ipixel_notification
+      data:
+        value: ""
+
+
+# -----------------------------------------------------------------------------
+# 12. CLOCK MODE SCHEDULE
+# -----------------------------------------------------------------------------
+# Switch to clock mode at night, back to info display in morning
+
+- alias: "iPIXEL Night Clock Mode"
+  id: ipixel_night_clock
+  description: "Switch to clock display at night"
+  mode: single
+
+  triggers:
+    - trigger: time
+      at: "22:00:00"
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    - service: ipixel_color.set_clock_mode
+      target:
+        entity_id: light.ipixel_color
+      data:
+        style: 1        # Clock style (0-8)
+        format_24: true
+        show_date: true
+
+    # Dim the display at night
+    - service: light.turn_on
+      target:
+        entity_id: light.ipixel_color
+      data:
+        brightness_pct: 20
+
+
+- alias: "iPIXEL Morning Wake"
+  id: ipixel_morning_wake
+  description: "Switch back to info display in morning"
+  mode: single
+
+  triggers:
+    - trigger: time
+      at: "07:00:00"
+
+  conditions:
+    - condition: state
+      entity_id: light.ipixel_color
+      state: "on"
+
+  actions:
+    # Restore brightness
+    - service: light.turn_on
+      target:
+        entity_id: light.ipixel_color
+      data:
+        brightness_pct: 80
+
+    # Show weather (which will start the rotation)
+    - service: ipixel_color.display_text
+      target:
+        entity_id: light.ipixel_color
+      data:
+        text: "Good morning! ☀"
+        text_color: "ffcc00"

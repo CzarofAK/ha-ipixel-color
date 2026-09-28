@@ -161,8 +161,11 @@ ip_bans.yaml
 .storage/
 deps/
 tts/
-www/
+/www/
 custom_components/*/*/__pycache__/
+# But include our component's www folder
+!custom_components/ipixel_color/www/
+!custom_components/ipixel_color/www/lib/
 
 # Testing files
 test_*.py
@@ -192,3 +195,5 @@ test_font_rendering.py
 
 # Claude Code specific
 .claude/
+# integration tests of this fork
+!tests/test_*.py
