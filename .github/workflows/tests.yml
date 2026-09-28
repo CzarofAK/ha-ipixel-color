@@ -42,4 +42,5 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          ignore: brands
+          # topics / issues are repository settings, not code
+          ignore: brands topics issues
