@@ -21,8 +21,11 @@ pytest_plugins = ["pytest_homeassistant_custom_component"]
 # blocking I/O inside the loop is reported ("Detected blocking call ...").
 from homeassistant import block_async_io  # noqa: E402
 
-block_async_io._IN_TESTS = False  # also check open/scandir/listdir
-block_async_io.enable()
+import os  # noqa: E402
+
+if os.environ.get("IPIXEL_NO_LOOP_PROTECTION") != "1":
+    block_async_io._IN_TESTS = False  # also check open/scandir/listdir
+    block_async_io.enable()
 
 # device type byte -> panel size (pypixelcolor DEVICE_TYPE_MAP / LED_SIZE_MAP)
 TYPE_96x16 = 132
@@ -78,16 +81,18 @@ class FakeBleakClient:
             return
         if msg[:4] == bytes([5, 0, 7, 1]):
             self.panel.power = bool(msg[4])
-        # image / GIF window: [len][02|03 00 option][size u32][crc u32][..2][payload]
-        if len(msg) > 15 and msg[2] in (2, 3) and msg[3] == 0:
+        # bulk data window (text 00 01, image 02 00, GIF 03 00, mix 04 00, ...):
+        # [len u16][type u16][option 00|02][total u32][crc u32][2 bytes][payload]
+        if len(msg) > 15 and msg[4] in (0, 2):
             total = int.from_bytes(msg[5:9], "little")
-            if msg[4] == 0:
-                self.panel.image_received = 0
-            self.panel.image_received += len(msg) - 15
-            self.panel.windows += 1
-            if self.panel.image_received >= total:
-                self._emit(bytes([5, 0, 1, 0, 3]))  # final ACK
-                return
+            if 0 < total and len(msg) - 15 <= total:
+                if msg[4] == 0:
+                    self.panel.image_received = 0
+                self.panel.image_received += len(msg) - 15
+                self.panel.windows += 1
+                if self.panel.image_received >= total:
+                    self._emit(bytes([5, 0, 1, 0, 3]))  # final ACK
+                    return
         self._emit(bytes([5, 0, 1, 0, 1]))  # window ACK
 
     def _emit(self, frame: bytes):
