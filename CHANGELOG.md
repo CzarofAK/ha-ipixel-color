@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - 2026-09-28
+## [0.3.0] - 2026-09-28
 
-Merge of the features of other forks onto the robust Bluetooth base of 0.1.1.
+Merge of the features of other forks onto the robust Bluetooth base of 0.2.1.
 Authors' commits and co-author credits are preserved.
 
 ### Added
@@ -40,7 +40,7 @@ Authors' commits and co-author credits are preserved.
 - Clock 24h switch state was never restored (method defined twice)
 - Textimage mode: panel firmware fonts mapped to a host font, font sizes
   below 4 px auto-fit (from arcdrake22)
-- `set_clock_mode` failed with "Year must be between 0 and 99" since 0.1.1
+- `set_clock_mode` failed with "Year must be between 0 and 99" since 0.2.1
   (the HA-local date was passed with a 4-digit year; pypixelcolor expects DD/MM/YY)
 - `pypixelcolor` pinned to `<0.5`: 0.5.0 removed the panel fonts CUSONG,
   SIMSUN and VCR_OSD_MONO, so fresh installs could not display text
@@ -52,7 +52,12 @@ Authors' commits and co-author credits are preserved.
 - Font glyph cache is memory-only: the disk cache did blocking file I/O in
   the event loop and wrote into the integration directory
 
-## [0.1.1] - 2026-09-28
+## [0.2.1] - 2026-09-28
+
+First version of this fork, based on upstream release
+[v0.2.0](https://github.com/cagcoach/ha-ipixel-color/releases/tag/v0.2.0)
+(16 Dec 2025; not listed below, see upstream). `manifest.json` said
+0.1.1 by mistake.
 
 ### Fixed
 - BLE connection: stale connection flag, missing reconnect and interleaved
