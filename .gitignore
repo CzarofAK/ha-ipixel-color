@@ -195,3 +195,5 @@ test_font_rendering.py
 
 # Claude Code specific
 .claude/
+# integration tests of this fork
+!tests/test_*.py
