@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .api import iPIXELAPI, iPIXELConnectionError, iPIXELTimeoutError
-from .const import DOMAIN, CONF_ADDRESS, CONF_NAME
+from .const import DOMAIN, CONF_ADDRESS, CONF_NAME, CONF_KEEP_CONNECTED, DEFAULT_KEEP_CONNECTED
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,8 +54,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    
+
+    # keep the BLE link open so commands execute immediately (optional:
+    # occupies one proxy connection slot and blocks the phone app)
+    if entry.options.get(CONF_KEEP_CONNECTED, DEFAULT_KEEP_CONNECTED):
+        api.start_keepalive()
+
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
+
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload entry when options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

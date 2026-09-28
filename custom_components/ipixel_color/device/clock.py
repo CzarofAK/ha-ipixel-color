@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+import homeassistant.util.dt as dt_util
+
 try:
     from pypixelcolor.commands.set_clock_mode import set_clock_mode
     from pypixelcolor.commands.set_time import set_time
@@ -37,6 +39,9 @@ def make_clock_mode_command(
     """
     if set_clock_mode is None:
         raise ImportError("pypixelcolor library is not installed")
+
+    if not date:
+        date = dt_util.now().strftime("%d/%m/%Y")  # HA local date
 
     # Call pypixelcolor's set_clock_mode function
     # It returns a SendPlan object with windows containing the command data
@@ -78,6 +83,14 @@ def make_time_command(
     """
     if set_time is None:
         raise ImportError("pypixelcolor library is not installed")
+
+    # Use Home Assistant's configured local time zone (the host/container
+    # clock may be UTC)
+    if hour is None or minute is None or second is None:
+        now = dt_util.now()
+        hour = now.hour if hour is None else hour
+        minute = now.minute if minute is None else minute
+        second = now.second if second is None else second
 
     # Call pypixelcolor's set_time function
     send_plan = set_time(hour=hour, minute=minute, second=second)

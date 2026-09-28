@@ -14,6 +14,8 @@ DEVICE_NAME_PREFIX = "LED_BLE_"
 # Configuration keys
 CONF_ADDRESS = "address"
 CONF_NAME = "name"
+CONF_KEEP_CONNECTED = "keep_connected"
+DEFAULT_KEEP_CONNECTED = True
 
 # Update interval
 SCAN_INTERVAL = 30

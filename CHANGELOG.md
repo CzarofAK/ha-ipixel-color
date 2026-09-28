@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-28
+
+### Fixed
+- BLE connection: stale connection flag, missing reconnect and interleaved
+  GATT operations caused lost commands and wrong power state, especially
+  with several panels switched together
+- Power switch state is now the last confirmed state, restored after HA
+  restart and re-applied to the panel after every reconnect
+- Blocking font directory scan in the event loop
+- Device info: 3 attempts, unknown defaults are not cached
+- Text animations 3/4 are refused on non-32x32 panels (boot loop)
+- Notifications on BlueZ with bleak >= 1.0 ("Notify acquired")
+- Rediscovery when HA lost the device right after a link drop
+- Clock time/date use the Home Assistant time zone
+
+### Added
+- Background keepalive (reconnect on advertisement / every 60 s)
+- Option "Keep connection open" (default on)
+- Power switch attributes `connected` and `desired_power`
+
 ## [0.1.0] - 2024-11-19
 
 ### Added
