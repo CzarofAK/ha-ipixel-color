@@ -92,7 +92,9 @@ class AnimationController:
                 "Starting animation loop: %d elements, %d FPS",
                 len(elements), self._fps
             )
-            self._task = self._hass.async_create_task(
+            # endless loop -> background task (a tracked task would block
+            # HA startup and async_block_till_done until the animation stops)
+            self._task = self._hass.async_create_background_task(
                 self._animation_loop(),
                 name="ipixel_animation_loop"
             )

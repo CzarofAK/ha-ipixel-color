@@ -38,12 +38,15 @@ class FontCache:
         Args:
             cache_dir: Directory for cache files (default: font_cache/)
         """
-        self._cache_dir = cache_dir or DEFAULT_CACHE_DIR
+        # Disk cache is opt-in: glyph rendering takes microseconds, while the
+        # disk cache did blocking file I/O inside the event loop and wrote
+        # into the integration directory (wiped by every HACS update).
+        self._cache_dir = cache_dir
         self._memory_cache: dict[str, tuple[Image.Image, int]] = {}
         self._font_cache: dict[str, ImageFont.FreeTypeFont] = {}
 
-        # Ensure cache directory exists
-        self._cache_dir.mkdir(parents=True, exist_ok=True)
+        if self._cache_dir is not None:
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_font_hash(self, font_path: str) -> str:
         """Get a short hash for font identification."""
@@ -138,9 +141,13 @@ class FontCache:
         if mem_key in self._memory_cache:
             return self._memory_cache[mem_key]
 
-        # Check disk cache
-        cache_path = self._get_cache_path(char, font_path, height)
-        if cache_path.exists():
+        # Check disk cache (opt-in)
+        cache_path = (
+            self._get_cache_path(char, font_path, height)
+            if self._cache_dir is not None
+            else None
+        )
+        if cache_path is not None and cache_path.exists():
             try:
                 img = Image.open(cache_path)
                 width = img.width
@@ -152,12 +159,13 @@ class FontCache:
         # Render the character
         img, width = self._render_char(char, font_path, height, font_size)
 
-        # Save to disk cache
-        try:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            img.save(cache_path, "PNG")
-        except Exception as err:
-            _LOGGER.debug("Cache write error: %s", err)
+        # Save to disk cache (opt-in)
+        if cache_path is not None:
+            try:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                img.save(cache_path, "PNG")
+            except Exception as err:
+                _LOGGER.debug("Cache write error: %s", err)
 
         # Save to memory cache
         self._memory_cache[mem_key] = (img, width)
@@ -334,7 +342,7 @@ class FontCache:
         # Optionally clear disk cache
         try:
             import shutil
-            if self._cache_dir.exists():
+            if self._cache_dir is not None and self._cache_dir.exists():
                 shutil.rmtree(self._cache_dir)
                 self._cache_dir.mkdir(parents=True, exist_ok=True)
             _LOGGER.info("Font cache cleared")
@@ -346,7 +354,7 @@ class FontCache:
         return {
             "memory_entries": len(self._memory_cache),
             "fonts_loaded": len(self._font_cache),
-            "cache_dir": str(self._cache_dir),
+            "cache_dir": str(self._cache_dir) if self._cache_dir else None,
         }
 
     def get_char_mask(

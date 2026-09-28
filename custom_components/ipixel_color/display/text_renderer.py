@@ -23,8 +23,8 @@ def get_font_cache() -> FontCache:
     """Get or create the global font cache instance."""
     global _font_cache
     if _font_cache is None:
-        cache_dir = Path(__file__).parent.parent / "cache" / "fonts"
-        _font_cache = FontCache(cache_dir)
+        # memory only (see FontCache): no blocking disk I/O in the event loop
+        _font_cache = FontCache()
     return _font_cache
 
 # Minimum font size to try

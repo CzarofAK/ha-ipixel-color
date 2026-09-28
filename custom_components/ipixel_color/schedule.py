@@ -473,7 +473,10 @@ class iPIXELScheduleManager:
         )
 
         # Start the playback loop
-        self._loop_task = asyncio.create_task(self._playback_loop())
+        # endless loop -> HA background task (cancelled on shutdown)
+        self._loop_task = self._hass.async_create_background_task(
+            self._playback_loop(), "ipixel_playlist_loop"
+        )
         await self.async_save()
         return True
 
