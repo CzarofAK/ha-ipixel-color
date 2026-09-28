@@ -1859,6 +1859,62 @@ class iPIXELAPI:
             _LOGGER.error("Error sending layout: %s", err)
             return False
 
+    # ------------------------------------------------------------------
+    # Weather clock for 96x16 panels (from gokberj/ha-ipixel-color)
+    # ------------------------------------------------------------------
+    async def display_weather_clock(
+        self,
+        *,
+        condition: str,
+        temperature: float | int | None,
+        hour_minute: str,
+        weekday_index: int,
+        day: int,
+        month: int,
+        custom_text: str | None = None,
+        font_name: str = "7x5.ttf",
+        font_size: float = 7.5,
+        language: str = "en",
+        rotate_180: bool = False,
+        save_slot: int = 0,
+    ) -> bool:
+        """Render weather icon + date + time + temperature and display it."""
+        from .display.weather_clock_renderer import render_weather_clock_to_png
+
+        try:
+            info = await self._get_device_info()
+            png = await self._hass.async_add_executor_job(
+                lambda: render_weather_clock_to_png(
+                    width=info.width,
+                    height=info.height,
+                    condition=condition,
+                    temperature=temperature,
+                    hour_minute=hour_minute,
+                    weekday_index=weekday_index,
+                    day=day,
+                    month=month,
+                    custom_text=custom_text,
+                    font_name=font_name,
+                    font_size=font_size,
+                    language=language,
+                    rotate_180=rotate_180,
+                )
+            )
+            plan = make_image_plan(
+                image_bytes=png,
+                file_extension=".png",
+                resize_method="crop",
+                device_info=info,
+                save_slot=save_slot,
+            )
+            result = await self._bluetooth.send_plan(plan)
+            if not result.success:
+                _LOGGER.error("Failed to send weather clock: %s", result.message)
+            return result.success
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.error("Error displaying weather clock: %s", err)
+            return False
+
     async def display_image_url_bytes(
         self,
         image_bytes: bytes,

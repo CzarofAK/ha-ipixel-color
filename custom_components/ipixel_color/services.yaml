@@ -2058,3 +2058,80 @@ display_layout:
         number:
           min: 0
           max: 10
+
+# --- Weather clock for 96x16 panels (from gokberj/ha-ipixel-color) ---
+display_weather_clock:
+  name: Display Weather Clock
+  description: Weather icon, weekday and date, time and temperature in one picture. Designed for 96x16
+    panels; the picture is static, call it every minute (e.g. time_pattern automation) to keep the time
+    current.
+  fields:
+    device_id:
+      name: Device
+      description: Target iPIXEL device
+      required: true
+      selector:
+        device:
+          integration: ipixel_color
+    weather_entity:
+      name: Weather entity
+      description: Weather entity providing condition and temperature
+      required: true
+      default: weather.forecast_home
+      selector:
+        entity:
+          domain: weather
+    language:
+      name: Language
+      description: Language of weekday and month abbreviations
+      default: en
+      selector:
+        select:
+          options:
+          - label: English
+            value: en
+          - label: Deutsch
+            value: de
+          - label: Türkçe
+            value: tr
+    custom_text:
+      name: Custom text
+      description: Replace the date row with your own text
+      required: false
+      selector:
+        text: null
+    font_name:
+      name: Font
+      description: Bundled font file
+      default: 7x5.ttf
+      selector:
+        select:
+          options:
+          - 7x5.ttf
+          - 5x5.ttf
+          - 3x5-de.ttf
+          - Lepidos.ttf
+          - WP7xn.ttf
+    font_size:
+      name: Font size
+      description: Font size in pixels
+      default: 7.5
+      selector:
+        number:
+          min: 4
+          max: 16
+          step: 0.5
+    rotate_180:
+      name: Rotate 180°
+      description: Render upside down (for panels mounted upside down; the device setting Orientation does the same for all content)
+      default: false
+      selector:
+        boolean: null
+    save_slot:
+      name: Save slot
+      description: Save to device slot (0 = don't save)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 10

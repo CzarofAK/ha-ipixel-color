@@ -1402,6 +1402,33 @@ async def handle_display_layout(call: ServiceCall) -> None:
     )
 
 
+async def handle_display_weather_clock(call: ServiceCall) -> None:
+    """Handle display_weather_clock service call (from gokberj)."""
+    from homeassistant.util import dt as dt_util
+
+    api = get_api(call)
+    weather_entity = call.data.get("weather_entity", "weather.forecast_home")
+    state = call.hass.states.get(weather_entity)
+    if state is None:
+        _LOGGER.error("display_weather_clock: weather entity %s not found", weather_entity)
+        return
+    now = dt_util.now()
+    await api.display_weather_clock(
+        condition=state.state,
+        temperature=state.attributes.get("temperature"),
+        hour_minute=now.strftime("%H:%M"),
+        weekday_index=now.weekday(),
+        day=now.day,
+        month=now.month,
+        custom_text=call.data.get("custom_text") or None,
+        font_name=call.data.get("font_name", "7x5.ttf"),
+        font_size=float(call.data.get("font_size", 7.5)),
+        language=call.data.get("language", "en"),
+        rotate_180=bool(call.data.get("rotate_180", False)),
+        save_slot=int(call.data.get("save_slot", 0)),
+    )
+
+
 def async_setup_services(hass: HomeAssistant) -> None:
     # Deliberately NOT registered in this fork (destructive / can lock the
     # panel): set_default_mode, erase_data, send_raw_command, set_password,
@@ -1410,6 +1437,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         hass.services.async_register(DOMAIN, "display_mdi_icon", handle_display_mdi_icon)
     if not hass.services.has_service(DOMAIN, "display_layout"):
         hass.services.async_register(DOMAIN, "display_layout", handle_display_layout)
+    if not hass.services.has_service(DOMAIN, "display_weather_clock"):
+        hass.services.async_register(DOMAIN, "display_weather_clock", handle_display_weather_clock)
     """Register iPIXEL services."""
 
     # Register all services if not already registered
