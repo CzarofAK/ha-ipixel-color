@@ -110,9 +110,7 @@ class BluetoothClient:
             except Exception:  # noqa: BLE001
                 pass
 
-        ble_device = bluetooth.async_ble_device_from_address(
-            self._hass, self._address, connectable=True
-        )
+        ble_device = await self._get_ble_device()
         if not ble_device:
             raise iPIXELConnectionError(
                 f"Device {self._address} not found (powered off / out of range?)"
@@ -128,7 +126,12 @@ class BluetoothClient:
                 max_attempts=3,
             )
             self._client = client
-            await client.start_notify(NOTIFY_UUID, self._handle_notify)
+            # bleak >= 1.0 on BlueZ uses AcquireNotify by default, which the
+            # panel rejects ("Notify acquired"); force StartNotify. Other
+            # backends (ESPHome proxy) ignore the bluez kwarg.
+            await client.start_notify(
+                NOTIFY_UUID, self._handle_notify, bluez={"use_start_notify": True}
+            )
         except Exception as err:  # noqa: BLE001
             await self._force_drop()
             raise iPIXELConnectionError(f"Connection failed: {err}") from err
@@ -137,6 +140,28 @@ class BluetoothClient:
         _LOGGER.info("Connected to iPIXEL %s", self._address)
         if self.on_state_change:
             self.on_state_change()
+
+    async def _get_ble_device(self):
+        """Return the BLEDevice; trigger rediscovery if HA lost track of it.
+
+        After a link drop HA's Bluetooth manager may briefly not report the
+        device as connectable although it is advertising again.
+        """
+        dev = bluetooth.async_ble_device_from_address(
+            self._hass, self._address, connectable=True
+        )
+        if dev or not hasattr(bluetooth, "async_rediscover_address"):
+            return dev
+        _LOGGER.debug("%s not in Bluetooth cache, triggering rediscovery", self._address)
+        bluetooth.async_rediscover_address(self._hass, self._address)
+        for _ in range(3):
+            await asyncio.sleep(1.0)
+            dev = bluetooth.async_ble_device_from_address(
+                self._hass, self._address, connectable=True
+            )
+            if dev:
+                return dev
+        return None
 
     async def connect(
         self, notification_handler: Callable[[Any, bytearray], None] | None = None
