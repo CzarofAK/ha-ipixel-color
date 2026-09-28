@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigType
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_time_interval
 
 from .api import iPIXELAPI, iPIXELConnectionError, iPIXELTimeoutError
@@ -40,6 +41,8 @@ PLATFORMS: list[Platform] = [
     Platform.CAMERA,
 ]
 
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 # Frontend card registration flag
 FRONTEND_REGISTERED = False

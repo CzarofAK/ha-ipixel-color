@@ -15,7 +15,9 @@
   ],
   "config_flow": true,
   "dependencies": [
-    "bluetooth"
+    "bluetooth",
+    "frontend",
+    "http"
   ],
   "documentation": "https://github.com/CzarofAK/ha-ipixel-color",
   "integration_type": "device",
