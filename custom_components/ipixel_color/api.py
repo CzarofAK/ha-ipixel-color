@@ -1915,6 +1915,38 @@ class iPIXELAPI:
             _LOGGER.error("Error displaying weather clock: %s", err)
             return False
 
+    # ------------------------------------------------------------------
+    # Any emoji as Twemoji image (from bastooky/ha-ipixel-color)
+    # ------------------------------------------------------------------
+    async def display_emoji(
+        self, emoji: str, bg_color: str = "000000", save_slot: int = 0
+    ) -> bool:
+        """Show an emoji: Twemoji PNG, downloaded async and cached in .storage."""
+        from .display.emoji_renderer import render_emoji_to_png
+
+        try:
+            info = await self._get_device_info()
+            png = await render_emoji_to_png(
+                self._hass, emoji, info.width, info.height, bg_color
+            )
+            if png is None:
+                _LOGGER.error("Could not render emoji %r (download failed?)", emoji)
+                return False
+            plan = make_image_plan(
+                image_bytes=png,
+                file_extension=".png",
+                resize_method="crop",
+                device_info=info,
+                save_slot=save_slot,
+            )
+            result = await self._bluetooth.send_plan(plan)
+            if not result.success:
+                _LOGGER.error("Failed to send emoji %r: %s", emoji, result.message)
+            return result.success
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.error("Error displaying emoji %r: %s", emoji, err)
+            return False
+
     async def display_image_url_bytes(
         self,
         image_bytes: bytes,

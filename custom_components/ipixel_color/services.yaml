@@ -2135,3 +2135,40 @@ display_weather_clock:
         number:
           min: 0
           max: 10
+
+# --- Any emoji via Twemoji (from bastooky/ha-ipixel-color) ---
+display_emoji:
+  name: Display Emoji
+  description: Show any emoji, centered, as a Twemoji picture. Downloaded on first use and cached in .storage/ipixel_emoji_cache.
+  fields:
+    device_id:
+      name: Device
+      description: Target iPIXEL device
+      required: true
+      selector:
+        device:
+          integration: ipixel_color
+    emoji:
+      name: Emoji
+      description: The emoji character, e.g. 🔔 🚨 ⚠️ 🌧️
+      required: true
+      example: 🚨
+      selector:
+        text: null
+    bg_color:
+      name: Background color
+      description: Background color
+      default:
+      - 0
+      - 0
+      - 0
+      selector:
+        color_rgb: null
+    save_slot:
+      name: Save slot
+      description: Save to device slot (0 = don't save)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 10

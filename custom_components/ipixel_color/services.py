@@ -1429,6 +1429,16 @@ async def handle_display_weather_clock(call: ServiceCall) -> None:
     )
 
 
+async def handle_display_emoji(call: ServiceCall) -> None:
+    """Handle display_emoji service call (from bastooky)."""
+    api = get_api(call)
+    await api.display_emoji(
+        call.data["emoji"],
+        bg_color=_rgb_to_hex(call.data.get("bg_color"), "000000"),
+        save_slot=int(call.data.get("save_slot", 0)),
+    )
+
+
 def async_setup_services(hass: HomeAssistant) -> None:
     # Deliberately NOT registered in this fork (destructive / can lock the
     # panel): set_default_mode, erase_data, send_raw_command, set_password,
@@ -1437,6 +1447,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         hass.services.async_register(DOMAIN, "display_mdi_icon", handle_display_mdi_icon)
     if not hass.services.has_service(DOMAIN, "display_layout"):
         hass.services.async_register(DOMAIN, "display_layout", handle_display_layout)
+    if not hass.services.has_service(DOMAIN, "display_emoji"):
+        hass.services.async_register(DOMAIN, "display_emoji", handle_display_emoji)
     if not hass.services.has_service(DOMAIN, "display_weather_clock"):
         hass.services.async_register(DOMAIN, "display_weather_clock", handle_display_weather_clock)
     """Register iPIXEL services."""
