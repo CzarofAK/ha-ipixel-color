@@ -77,5 +77,16 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "iPIXEL options",
+        "description": "Keep the Bluetooth connection open permanently. Commands execute immediately and several panels switch simultaneously, but the connection occupies one Bluetooth proxy slot and the phone app cannot connect while Home Assistant is connected.",
+        "data": {
+          "keep_connected": "Keep connection open"
+        }
+      }
+    }
   }
 }
