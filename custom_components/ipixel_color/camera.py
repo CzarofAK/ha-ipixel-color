@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.camera import Camera
+from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -42,7 +42,7 @@ class iPIXELCamera(Camera):
     """
 
     _attr_is_streaming = False
-    _attr_supported_features = 0
+    _attr_supported_features = CameraEntityFeature(0)
 
     def __init__(
         self,
