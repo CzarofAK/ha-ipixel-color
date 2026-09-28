@@ -54,7 +54,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    
+
+    # keep the BLE link open so commands execute immediately
+    api.start_keepalive()
+
     return True
 
 

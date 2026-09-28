@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING
+
+from homeassistant.core import callback
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -36,26 +38,59 @@ class iPIXELAPI:
         self._address = address
         self._bluetooth = BluetoothClient(hass, address)
         self._power_state = False
+        # state HA wants the panel to be in (restored across restarts);
+        # re-applied automatically after every (re)connect
+        self.desired_power: bool | None = None
+        self._listeners: list[Callable[[], None]] = []
         self._device_info: dict[str, Any] | None = None
         self._device_response: bytes | None = None
-        
+        self._bluetooth.on_state_change = self._notify_listeners
+        self._bluetooth.on_reconnected = self.apply_desired_power
+
+    # ---------------------------------------------------------- listeners
+    @callback
+    def async_add_listener(self, cb: Callable[[], None]) -> Callable[[], None]:
+        self._listeners.append(cb)
+        return lambda: self._listeners.remove(cb)
+
+    @callback
+    def _notify_listeners(self) -> None:
+        for cb in list(self._listeners):
+            cb()
+
+    # --------------------------------------------------------- connection
     async def connect(self) -> bool:
         """Connect to the iPIXEL device."""
         return await self._bluetooth.connect(self._notification_handler)
-    
+
     async def disconnect(self) -> None:
         """Disconnect from the device."""
         await self._bluetooth.disconnect()
-    
+
+    def start_keepalive(self) -> None:
+        self._bluetooth.start_keepalive()
+
+    @property
+    def is_present(self) -> bool:
+        return self._bluetooth.is_present
+
+    # -------------------------------------------------------------- power
     async def set_power(self, on: bool) -> bool:
-        """Set device power state."""
-        command = make_power_command(on)
-        success = await self._bluetooth.send_command(command)
-        
+        """Set device power state (reconnects + retries internally)."""
+        self.desired_power = on
+        success = await self._bluetooth.send_command(make_power_command(on))
         if success:
             self._power_state = on
-            _LOGGER.debug("Power set to %s", "ON" if on else "OFF")
+            _LOGGER.debug("%s power set to %s", self._address, "ON" if on else "OFF")
+        self._notify_listeners()
         return success
+
+    async def apply_desired_power(self) -> None:
+        """Push the desired power state to the panel (after reconnect)."""
+        if self.desired_power is None:
+            return
+        _LOGGER.debug("%s: re-applying power=%s", self._address, self.desired_power)
+        await self.set_power(self.desired_power)
     
     async def set_brightness(self, brightness: int) -> bool:
         """Set device brightness level.
@@ -157,39 +192,12 @@ class iPIXELAPI:
             
         try:
             command = build_device_info_command()
-            
-            # Set up notification response
-            self._device_response = None
-            response_received = asyncio.Event()
-            
-            def response_handler(sender: Any, data: bytearray) -> None:
-                self._device_response = bytes(data)
-                response_received.set()
-            
-            # Enable notifications temporarily
-            await self._bluetooth._client.start_notify(
-                "0000fa03-0000-1000-8000-00805f9b34fb", response_handler
-            )
-            
-            try:
-                # Send command
-                await self._bluetooth._client.write_gatt_char(
-                    "0000fa02-0000-1000-8000-00805f9b34fb", command
-                )
-                
-                # Wait for response (5 second timeout)
-                await asyncio.wait_for(response_received.wait(), timeout=5.0)
-                
-                if self._device_response:
-                    self._device_info = parse_device_response(self._device_response)
-                else:
-                    raise Exception("No response received")
-                    
-            finally:
-                await self._bluetooth._client.stop_notify(
-                    "0000fa03-0000-1000-8000-00805f9b34fb"
-                )
-            
+            response = await self._bluetooth.request(command, timeout=5.0)
+            if not response:
+                raise Exception("No response received")
+            self._device_response = response
+            self._device_info = parse_device_response(response)
+
             _LOGGER.info("Device info retrieved: %s", self._device_info)
             return self._device_info
             

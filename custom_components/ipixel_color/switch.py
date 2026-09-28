@@ -7,6 +7,7 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -39,14 +40,22 @@ async def async_setup_entry(
     ])
 
 
-class iPIXELSwitch(SwitchEntity):
-    """Representation of an iPIXEL Color switch."""
+class iPIXELSwitch(SwitchEntity, RestoreEntity):
+    """iPIXEL power switch.
+
+    Patched: state is the last *confirmed* power state, restored across
+    restarts and re-applied to the panel after every reconnect. No polling;
+    the entity is pushed on every change of power or link state.
+    """
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:led-strip-variant"
 
     def __init__(
-        self, 
-        api: iPIXELAPI, 
-        entry: ConfigEntry, 
-        address: str, 
+        self,
+        api: iPIXELAPI,
+        entry: ConfigEntry,
+        address: str,
         name: str
     ) -> None:
         """Initialize the switch."""
@@ -56,10 +65,7 @@ class iPIXELSwitch(SwitchEntity):
         self._name = name
         self._attr_name = name
         self._attr_unique_id = f"{address}_power"
-        self._is_on = False
-        self._available = True
 
-        # Device info for grouping in device registry
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, address)},
             name=name,
@@ -68,73 +74,49 @@ class iPIXELSwitch(SwitchEntity):
             sw_version="1.0",
         )
 
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state in ("on", "off"):
+            restored = last.state == "on"
+            self._api.desired_power = restored
+            self._api._power_state = restored  # noqa: SLF001
+            # bring the panel in line with HA after a restart
+            self.hass.async_create_background_task(
+                self._api.apply_desired_power(), f"ipixel_restore_{self._address}"
+            )
+        self.async_on_remove(self._api.async_add_listener(self.async_write_ha_state))
+
     @property
     def is_on(self) -> bool:
-        """Return True if entity is on."""
-        return self._is_on
+        return self._api.power_state
 
     @property
     def available(self) -> bool:
-        """Return True if entity is available."""
-        # Always return True to allow reconnection attempts
-        # The actual connection state will be handled in the turn_on/turn_off methods
-        return True
+        # available while connected OR advertising (reachable). Only a panel
+        # without power / out of range becomes unavailable.
+        return self._api.is_connected or self._api.is_present
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "connected": self._api.is_connected,
+            "desired_power": self._api.desired_power,
+        }
+
+    async def _set(self, on: bool) -> None:
+        if not await self._api.set_power(on):
+            # desired_power stays set -> applied automatically on reconnect
+            raise HomeAssistantError(
+                f"{self._name}: panel not reachable, will switch "
+                f"{'on' if on else 'off'} as soon as it reconnects"
+            )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the entity on."""
-        try:
-            if not self._api.is_connected:
-                _LOGGER.debug("Reconnecting to device before turning on")
-                await self._api.connect()
-            
-            success = await self._api.set_power(True)
-            if success:
-                self._is_on = True
-                _LOGGER.debug("Successfully turned on iPIXEL display")
-            else:
-                _LOGGER.error("Failed to turn on iPIXEL display")
-                
-        except iPIXELConnectionError as err:
-            _LOGGER.error("Connection error while turning on: %s", err)
-            # Don't set unavailable to allow retry
-        except Exception as err:
-            _LOGGER.error("Unexpected error while turning on: %s", err)
+        await self._set(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn the entity off."""
-        try:
-            if not self._api.is_connected:
-                _LOGGER.debug("Reconnecting to device before turning off")
-                await self._api.connect()
-            
-            success = await self._api.set_power(False)
-            if success:
-                self._is_on = False
-                _LOGGER.debug("Successfully turned off iPIXEL display")
-            else:
-                _LOGGER.error("Failed to turn off iPIXEL display")
-                
-        except iPIXELConnectionError as err:
-            _LOGGER.error("Connection error while turning off: %s", err)
-            # Don't set unavailable to allow retry
-        except Exception as err:
-            _LOGGER.error("Unexpected error while turning off: %s", err)
-
-    async def async_update(self) -> None:
-        """Update the entity state."""
-        try:
-            # Check connection status
-            if self._api.is_connected:
-                self._available = True
-                # In this basic version, we use the API's cached power state
-                self._is_on = self._api.power_state
-            else:
-                self._available = False
-                _LOGGER.debug("Device not connected, marking as unavailable")
-                
-        except Exception as err:
-            _LOGGER.error("Error updating entity state: %s", err)
-            self._available = False
+        await self._set(False)
 
 
 class iPIXELAntialiasingSwitch(SwitchEntity, RestoreEntity):
