@@ -42,6 +42,25 @@
     "switch": {
       "power": {
         "name": "Power"
+      },
+      "fun_mode": {
+        "name": "Fun Mode"
+      },
+      "screen_visible": {
+        "name": "Screen Visible"
+      }
+    },
+    "select": {
+      "orientation": {
+        "name": "Orientation"
+      },
+      "rhythm_style": {
+        "name": "Rhythm Style"
+      }
+    },
+    "number": {
+      "rhythm_speed": {
+        "name": "Rhythm Speed"
       }
     }
   },
@@ -49,9 +68,12 @@
     "step": {
       "init": {
         "title": "iPIXEL options",
-        "description": "Keep the Bluetooth connection open permanently. Commands execute immediately and several panels switch simultaneously, but the connection occupies one Bluetooth proxy slot and the phone app cannot connect while Home Assistant is connected.",
+        "description": "Keep connection open: commands execute immediately and several panels switch simultaneously, but the connection occupies one Bluetooth proxy slot and the phone app cannot connect while Home Assistant is connected.\n\nDimension override: some panels report wrong dimensions over Bluetooth. Enable it and enter the physical size if the panel renders incorrectly.",
         "data": {
-          "keep_connected": "Keep connection open"
+          "keep_connected": "Keep connection open",
+          "override_dimensions": "Override panel dimensions",
+          "panel_width": "Panel width (pixels, 0 = firmware value)",
+          "panel_height": "Panel height (pixels, 0 = firmware value)"
         }
       }
     }

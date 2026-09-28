@@ -37,6 +37,9 @@ async def async_setup_entry(
         iPIXELAutoUpdateSwitch(api, entry, address, name),
         iPIXELClock24HSwitch(hass, api, entry, address, name),
         iPIXELClockShowDateSwitch(hass, api, entry, address, name),
+        iPIXELProgramListSwitch(hass, api, entry, address, name),
+        iPIXELFunModeSwitch(hass, api, entry, address, name),
+        iPIXELScreenVisibleSwitch(hass, api, entry, address, name),
     ])
 
 
@@ -300,12 +303,14 @@ class iPIXELClock24HSwitch(SwitchEntity, RestoreEntity):
         """Enable 24h format."""
         self._is_on = True
         _LOGGER.debug("Clock 24h format enabled")
+        self.async_write_ha_state()
         await self._trigger_auto_update()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable 24h format (use 12h)."""
         self._is_on = False
         _LOGGER.debug("Clock 12h format enabled")
+        self.async_write_ha_state()
         await self._trigger_auto_update()
 
     async def _trigger_auto_update(self) -> None:
@@ -369,6 +374,9 @@ class iPIXELClockShowDateSwitch(SwitchEntity, RestoreEntity):
         if last_state is not None:
             self._is_on = last_state.state == "on"
             _LOGGER.debug("Restored clock show date state: %s", self._is_on)
+            
+        await update_ipixel_display(self.hass, self._name, self._api)
+        
 
     @property
     def is_on(self) -> bool:
@@ -384,12 +392,14 @@ class iPIXELClockShowDateSwitch(SwitchEntity, RestoreEntity):
         """Enable showing date."""
         self._is_on = True
         _LOGGER.debug("Clock show date enabled")
+        self.async_write_ha_state()
         await self._trigger_auto_update()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disable showing date."""
         self._is_on = False
         _LOGGER.debug("Clock show date disabled")
+        self.async_write_ha_state()
         await self._trigger_auto_update()
 
     async def _trigger_auto_update(self) -> None:
@@ -409,3 +419,263 @@ class iPIXELClockShowDateSwitch(SwitchEntity, RestoreEntity):
                     _LOGGER.debug("Auto-update triggered due to clock show date change")
         except Exception as err:
             _LOGGER.debug("Could not trigger auto-update: %s", err)
+
+
+class iPIXELProgramListSwitch(SwitchEntity, RestoreEntity):
+    """Representation of an iPIXEL Color program list cycling setting."""
+
+    _attr_icon = "mdi:playlist-play"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        api: iPIXELAPI,
+        entry: ConfigEntry,
+        address: str,
+        name: str
+    ) -> None:
+        """Initialize the program list switch."""
+        self.hass = hass
+        self._api = api
+        self._entry = entry
+        self._address = address
+        self._name = name
+        self._attr_name = "Program List"
+        self._attr_unique_id = f"{address}_program_list"
+        self._attr_entity_description = "Enable automatic cycling through scheduled items"
+        self._is_on = False  # Default to disabled
+
+        # Device info for grouping in device registry
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, address)},
+            name=name,
+            manufacturer="iPIXEL",
+            model="LED Matrix Display",
+            sw_version="1.0",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to be added to hass."""
+        await super().async_added_to_hass()
+
+        # Restore last state if available
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            self._is_on = last_state.state == "on"
+            _LOGGER.debug("Restored program list state: %s", self._is_on)
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if program list cycling is enabled."""
+        return self._is_on
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return True
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable program list cycling."""
+        self._is_on = True
+        _LOGGER.info("Program list cycling enabled")
+
+        # Start the schedule manager playlist loop if available
+        try:
+            schedule_manager = self.hass.data.get(DOMAIN, {}).get(f"{self._entry.entry_id}_schedule")
+            if schedule_manager:
+                # Get interval from number entity
+                interval_entity_id = get_entity_id_by_unique_id(
+                    self.hass, self._address, "schedule_interval", "number"
+                )
+                interval_state = self.hass.states.get(interval_entity_id) if interval_entity_id else None
+                interval_ms = int(float(interval_state.state)) if interval_state else 5000
+
+                await schedule_manager.start_playlist_loop(interval_ms)
+                _LOGGER.debug("Started playlist loop with interval %d ms", interval_ms)
+        except Exception as err:
+            _LOGGER.error("Could not start playlist loop: %s", err)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable program list cycling."""
+        self._is_on = False
+        _LOGGER.info("Program list cycling disabled")
+
+        # Stop the schedule manager playlist loop if available
+        try:
+            schedule_manager = self.hass.data.get(DOMAIN, {}).get(f"{self._entry.entry_id}_schedule")
+            if schedule_manager:
+                await schedule_manager.stop_playlist_loop()
+                _LOGGER.debug("Stopped playlist loop")
+        except Exception as err:
+            _LOGGER.error("Could not stop playlist loop: %s", err)
+
+
+class iPIXELFunModeSwitch(SwitchEntity, RestoreEntity):
+    """Representation of an iPIXEL Color fun mode (pixel control) setting."""
+
+    _attr_icon = "mdi:dots-grid"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        api: iPIXELAPI,
+        entry: ConfigEntry,
+        address: str,
+        name: str
+    ) -> None:
+        """Initialize the fun mode switch."""
+        self.hass = hass
+        self._api = api
+        self._entry = entry
+        self._address = address
+        self._name = name
+        self._attr_name = "Fun Mode"
+        self._attr_unique_id = f"{address}_fun_mode"
+        self._attr_entity_description = "Enable fun mode for direct pixel control"
+        self._is_on = False
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, address)},
+            name=name,
+            manufacturer="iPIXEL",
+            model="LED Matrix Display",
+            sw_version="1.0",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to be added to hass."""
+        await super().async_added_to_hass()
+
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            self._is_on = last_state.state == "on"
+            _LOGGER.debug("Restored fun mode state: %s", self._is_on)
+        
+        await self._api.set_fun_mode(self._is_on)  # Ensure device state matches restored state
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if fun mode is enabled."""
+        return self._is_on
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return True
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable fun mode."""
+        try:
+            if not self._api.is_connected:
+                await self._api.connect()
+
+            success = await self._api.set_fun_mode(True)
+            if success:
+                self._is_on = True
+                _LOGGER.info("Fun mode enabled - pixel control now available")
+            else:
+                _LOGGER.error("Failed to enable fun mode")
+        except Exception as err:
+            _LOGGER.error("Error enabling fun mode: %s", err)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable fun mode."""
+        try:
+            if not self._api.is_connected:
+                await self._api.connect()
+
+            success = await self._api.set_fun_mode(False)
+            if success:
+                self._is_on = False
+                _LOGGER.info("Fun mode disabled")
+            else:
+                _LOGGER.error("Failed to disable fun mode")
+        except Exception as err:
+            _LOGGER.error("Error disabling fun mode: %s", err)
+
+
+class iPIXELScreenVisibleSwitch(SwitchEntity, RestoreEntity):
+    """Representation of an iPIXEL Color screen visibility setting."""
+
+    _attr_icon = "mdi:eye"
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        api: iPIXELAPI,
+        entry: ConfigEntry,
+        address: str,
+        name: str
+    ) -> None:
+        """Initialize the screen visible switch."""
+        self.hass = hass
+        self._api = api
+        self._entry = entry
+        self._address = address
+        self._name = name
+        self._attr_name = "Screen Visible"
+        self._attr_unique_id = f"{address}_screen_visible"
+        self._attr_entity_description = "Show/hide screen content (keeps device powered)"
+        self._is_on = True  # Default to visible
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, address)},
+            name=name,
+            manufacturer="iPIXEL",
+            model="LED Matrix Display",
+            sw_version="1.0",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to be added to hass."""
+        await super().async_added_to_hass()
+
+        last_state = await self.async_get_last_state()
+        if last_state is not None:
+            self._is_on = last_state.state == "on"
+            _LOGGER.debug("Restored screen visible state: %s", self._is_on)
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if screen is visible."""
+        return self._is_on
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return True
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Make screen visible (restore content)."""
+        try:
+            if not self._api.is_connected:
+                await self._api.connect()
+
+            # Leave the DIY blank state before re-sending content.
+            await self._api.restore_display()
+
+            # Trigger display update to restore content
+            success = await update_ipixel_display(self.hass, self._name, self._api)
+            if success:
+                self._is_on = True
+                _LOGGER.info("Screen visibility restored")
+            else:
+                _LOGGER.warning("Screen visibility restored but display update failed")
+                self._is_on = True
+        except Exception as err:
+            _LOGGER.error("Error restoring screen visibility: %s", err)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Hide screen (blank the display, leaving stored slots intact)."""
+        try:
+            if not self._api.is_connected:
+                await self._api.connect()
+
+            success = await self._api.clear_display()
+            if success:
+                self._is_on = False
+                _LOGGER.info("Screen hidden (display blanked)")
+            else:
+                _LOGGER.error("Failed to hide screen")
+        except Exception as err:
+            _LOGGER.error("Error hiding screen: %s", err)

@@ -7,13 +7,18 @@ These displays have been recently available as B.K. Light LED Pixel Board from A
 
 ## Features
 
-- **Multiple Display Modes**: Text Image (PIL rendering), Native Text, and Clock modes
+- **Multiple Display Modes**: Text Image, Native Text, Clock, GIF, and Rhythm modes
 - **RGB Color Support**: Separate text and background colors via RGB light entities
 - **Clock Display**: 9 different clock styles with automatic time synchronization
 - **Rich Text Display**: Custom fonts, sizes, multiline text with `\n`, antialiasing
 - **Template Support**: Use Home Assistant variables like `{{ states('sensor.temperature') }}°C`
 - **Font Management**: Load TTF/OTF fonts from `fonts/` folder
 - **Brightness Control**: Adjustable display brightness (1-100)
+- **Orientation Control**: Rotate display (0°, 90°, 180°, 270°)
+- **Rhythm/Music Visualizer**: Audio-reactive display with 5 visual styles
+- **Direct Pixel Control**: Set individual LED pixels via service calls
+- **Digital Signage**: Playlists, time slots, power scheduling
+- **Lovelace Card**: Built-in visual control card
 - **Auto/Manual Updates**: Choose automatic updates or manual refresh
 - **State Persistence**: Settings preserved across HA restarts
 - **Bluetooth Proxy Support**: Compatible with Bluetooth proxy devices
@@ -107,12 +112,98 @@ Temp: {{ states('sensor.temperature') | round(1) }}°C
 - Restart HA to see new fonts in dropdown
 - Recommended: pixel fonts like 5x5.ttf, 7x7.ttf
 
+## Safety Notes
+
+These displays store content in SPI flash and re-read it at every boot, so a
+bad write can leave the device unable to start.
+
+- **Text animations 3 and 4 boot-loop non-32×32 panels.** They are blocked by
+  this integration and omitted from the service pickers. Recovery from a boot
+  loop means racing a clear command into a very short window at power-on, so
+  don't try to send them via `send_raw_command` either.
+- **Test content before writing it to a slot.** If a payload displays correctly
+  without `buffer_slot`, it is safe to save. A corrupt payload written to a slot
+  is replayed on every boot.
+- **`ipixel_color.set_default_mode` is destructive.** It erases every saved slot
+  and the device settings. To blank the screen, use `ipixel_color.clear_pixels`
+  or turn off the screen switch — both are non-destructive.
+
 ## Troubleshooting
+
+**Device not found / won't connect**
+
+The panel accepts only one Bluetooth connection at a time, and it stops
+advertising entirely while something is connected to it. This is the most common
+cause of discovery failures:
+
+1. Force-close the official iPIXEL Color app on every phone in range (leaving it
+   backgrounded is often enough to hold the connection).
+2. If the panel was paired to a phone, unpair it there.
+3. Power-cycle the panel and retry discovery in Home Assistant.
+
+Only one controller can drive the display — pick either Home Assistant or the
+phone app, not both.
+
+**Other issues**
 
 - Enable debug logging: `custom_components.ipixel_color: debug`
 - Check auto-update is ON or use manual update button
 - Verify templates in Developer Tools → Template
 - Ensure device is in Bluetooth range
+
+## Lovelace Card
+
+The integration includes a built-in Lovelace card for visual control. After installation, add the resource to your Lovelace configuration:
+
+```yaml
+resources:
+  - url: /ipixel_color/ipixel-display-card.js
+    type: module
+```
+
+Then add the card to your dashboard:
+
+```yaml
+type: custom:ipixel-display-card
+entity: text.ipixel_living_room_text
+name: Living Room Display
+resolution: 64x16
+show_header: true
+show_display: true
+show_controls: true
+show_quick_actions: true
+```
+
+**Card Features:**
+- Display preview with LED matrix visualization
+- Quick actions: Power, Clear, Clock, Sync Time
+- Text input with effects (scroll, blink, breeze, snow, laser)
+- Brightness and orientation controls
+- Playlist management
+- Power schedule configuration
+
+## Services
+
+The integration provides these services for automation:
+
+| Service | Description |
+|---------|-------------|
+| `ipixel_color.display_text` | Display text with effects and colors |
+| `ipixel_color.set_brightness` | Set brightness level (1-100) |
+| `ipixel_color.set_clock_mode` | Enable clock display with style options |
+| `ipixel_color.sync_time` | Sync current time to device |
+| `ipixel_color.upload_gif` | Upload and display GIF animation |
+| `ipixel_color.set_pixel` | Set a single pixel color |
+| `ipixel_color.set_pixels` | Set multiple pixels (batch) |
+| `ipixel_color.clear_pixels` | Clear the display |
+| `ipixel_color.show_slot` | Display content from stored slot |
+| `ipixel_color.delete_slot` | Delete stored slot content |
+| `ipixel_color.create_playlist` | Create content playlist |
+| `ipixel_color.start_playlist` | Start playlist playback |
+| `ipixel_color.stop_playlist` | Stop playlist |
+| `ipixel_color.add_schedule` | Add scheduled display item |
+| `ipixel_color.set_power_schedule` | Configure auto on/off times |
+| `ipixel_color.add_time_slot` | Schedule playlist for specific times |
 
 ## Status
 
@@ -125,7 +216,12 @@ Temp: {{ states('sensor.temperature') | round(1) }}°C
 | ✅ Templates | Complete |
 | ✅ State Persistence | Complete |
 | ✅ Brightness Control | Complete |
-| 🔄 GIF Animations | Planned |
+| ✅ Orientation Control | Complete |
+| ✅ Rhythm/Music Mode | Complete |
+| ✅ Pixel Control | Complete |
+| ✅ Digital Signage | Complete |
+| ✅ Lovelace Card | Complete |
+| 🔄 GIF Animations | In Progress |
 | 🔄 Animated Variable-Width Fonts | Planned |
 
 ## Technical
@@ -139,3 +235,27 @@ Special thanks to the authors of [pypixelcolor](https://github.com/lucagoc/pypix
 ## License
 
 This project is licensed under the GNU General Public License v3.0 - see the LICENSE file for details.
+
+## Debugging and Logs
+
+To troubleshoot issues such as unexpected reboots or missing messages, enable detailed logging for the integration:
+
+```yaml
+# configuration.yaml
+logger:
+  default: info
+  logs:
+    custom_components.ipixel_color: debug
+```
+
+After restarting Home Assistant, view the logs via **Settings → System → Logs**. Look for entries prefixed with `custom_components.ipixel_color`, which include API calls, template rendering, and any warnings about validation limits.
+
+You can also monitor the raw data sent to the device by enabling the `pypixelcolor` logger:
+
+```yaml
+logger:
+  logs:
+    pypixelcolor: debug
+```
+
+These logs show the exact command payloads, which helps identify problematic parameters that could cause a reboot.

@@ -5,7 +5,7 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.template import Template
 from homeassistant.helpers import entity_registry as er
-from .const import MODE_TEXT_IMAGE, MODE_TEXT, MODE_CLOCK, DOMAIN
+from .const import MODE_TEXT_IMAGE, MODE_TEXT, MODE_CLOCK, MODE_GIF, MODE_RHYTHM, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ async def resolve_template_variables(hass: HomeAssistant, text: str) -> str:
         return text
 
 
-async def update_ipixel_display(hass: HomeAssistant, device_name: str, api, text: str = None) -> bool:
+async def update_ipixel_display(hass: HomeAssistant, device_name: str, api, text: str = None, mode: str = None) -> bool:
     """Update iPIXEL display with current settings - can be called from anywhere.
     
     Args:
@@ -108,13 +108,17 @@ async def update_ipixel_display(hass: HomeAssistant, device_name: str, api, text
         device_name: Device name for entity ID lookups
         api: iPIXEL API instance
         text: Text to display, or None to get from text entity
+        mode: Mode to render, or None to read it from the mode select entity.
+            Callers that just changed the mode pass it explicitly so the
+            update does not race the entity state write.
 
     Returns:
         True if update was successful
     """
     try:
         # Get current mode
-        mode = await _get_entity_setting(hass, device_name, "select", "mode_select", str, api._address)
+        if mode is None:
+            mode = await _get_entity_setting(hass, device_name, "select", "mode_select", str, api._address)
         if not mode:
             mode = MODE_TEXT_IMAGE  # Default to textimage mode
 
@@ -127,6 +131,10 @@ async def update_ipixel_display(hass: HomeAssistant, device_name: str, api, text
             return await _update_text_mode(hass, device_name, api, text)
         elif mode == MODE_CLOCK:
             return await _update_clock_mode(hass, device_name, api)
+        elif mode == MODE_GIF:
+            return await _update_gif_mode(hass, device_name, api)
+        elif mode == MODE_RHYTHM:
+            return await _update_rhythm_mode(hass, device_name, api)
         else:
             _LOGGER.warning("Unknown mode: %s, falling back to textimage", mode)
             return await _update_textimage_mode(hass, device_name, api, text)
@@ -318,6 +326,9 @@ async def _update_text_mode(hass: HomeAssistant, device_name: str, api, text: st
         if rainbow_mode is None:
             rainbow_mode = 0  # Default to no rainbow
 
+        # Font size - reuse existing font size entity if available, otherwise default to auto-sizing
+        font_size = await _get_entity_setting(hass, device_name, "number", "font_size", float, api._address)
+
         # Connect if needed
         if not api.is_connected:
             _LOGGER.debug("Reconnecting to device for text mode update")
@@ -335,7 +346,8 @@ async def _update_text_mode(hass: HomeAssistant, device_name: str, api, text: st
             font=font,
             animation=animation,
             speed=speed,
-            rainbow_mode=rainbow_mode
+            rainbow_mode=rainbow_mode,
+            matrix_height=int(font_size) if font_size else None
         )
 
         if success:
@@ -348,6 +360,96 @@ async def _update_text_mode(hass: HomeAssistant, device_name: str, api, text: st
 
     except Exception as err:
         _LOGGER.error("Error in text mode update: %s", err)
+        return False
+
+
+async def _update_gif_mode(hass: HomeAssistant, device_name: str, api) -> bool:
+    """Update display in GIF mode.
+
+    Args:
+        hass: Home Assistant instance
+        device_name: Device name for entity ID lookups
+        api: iPIXEL API instance
+
+    Returns:
+        True if update was successful
+    """
+    try:
+        # Get GIF URL from entity
+        gif_url_entity_id = get_entity_id_by_unique_id(hass, api._address, "gif_url", "text")
+        gif_url_state = hass.states.get(gif_url_entity_id) if gif_url_entity_id else None
+
+        if not gif_url_state or gif_url_state.state in ("unknown", "unavailable", ""):
+            _LOGGER.warning("No GIF URL configured - skipping update")
+            return False
+
+        gif_url = gif_url_state.state
+
+        # Resolve templates in URL (in case it's dynamic)
+        gif_url = await resolve_template_variables(hass, gif_url)
+
+        # Connect if needed
+        if not api.is_connected:
+            _LOGGER.debug("Reconnecting to device for GIF mode update")
+            await api.connect()
+
+        # Send GIF to display
+        success = await api.display_image_url(gif_url)
+
+        if success:
+            _LOGGER.info("GIF mode update successful: %s", gif_url)
+        else:
+            _LOGGER.error("GIF mode update failed")
+
+        return success
+
+    except Exception as err:
+        _LOGGER.error("Error in GIF mode update: %s", err)
+        return False
+
+
+async def _update_rhythm_mode(hass: HomeAssistant, device_name: str, api) -> bool:
+    """Update display in rhythm/music visualizer mode.
+
+    Args:
+        hass: Home Assistant instance
+        device_name: Device name for entity ID lookups
+        api: iPIXEL API instance
+
+    Returns:
+        True if update was successful
+    """
+    try:
+        # Get rhythm settings from entities
+        rhythm_style = await _get_entity_setting(hass, device_name, "select", "rhythm_style_select", int, api._address)
+        if rhythm_style is None:
+            rhythm_style = 0  # Default style
+
+        rhythm_speed = await _get_entity_setting(hass, device_name, "number", "rhythm_speed", int, api._address)
+        if rhythm_speed is None:
+            rhythm_speed = 4  # Default speed
+
+        # Connect if needed
+        if not api.is_connected:
+            _LOGGER.debug("Reconnecting to device for rhythm mode update")
+            await api.connect()
+
+        # Send rhythm mode command
+        success = await api.set_rhythm_mode(
+            style=rhythm_style,
+            speed=rhythm_speed
+        )
+
+        if success:
+            _LOGGER.info("Rhythm mode activated: style=%d, speed=%d",
+                       rhythm_style, rhythm_speed)
+        else:
+            _LOGGER.error("Failed to activate rhythm mode")
+
+        return success
+
+    except Exception as err:
+        _LOGGER.error("Error in rhythm mode update: %s", err)
         return False
 
 

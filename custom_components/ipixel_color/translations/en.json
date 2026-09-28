@@ -78,13 +78,33 @@
       }
     }
   },
+  "exceptions": {
+    "missing_device_or_entity_id": {
+      "message": "Specify a device_id or entity_id for the iPIXEL device."
+    },
+    "invalid_device_id": {
+      "message": "No iPIXEL device found for device_id {device_id}."
+    },
+    "entry_not_loaded": {
+      "message": "The iPIXEL device {entry} is not loaded."
+    },
+    "config_entry_not_found": {
+      "message": "Device {device_id} does not belong to the iPIXEL Color integration."
+    },
+    "invalid_entity_id": {
+      "message": "{entity_id} is not an entity of an iPIXEL device."
+    }
+  },
   "options": {
     "step": {
       "init": {
         "title": "iPIXEL options",
-        "description": "Keep the Bluetooth connection open permanently. Commands execute immediately and several panels switch simultaneously, but the connection occupies one Bluetooth proxy slot and the phone app cannot connect while Home Assistant is connected.",
+        "description": "Keep connection open: commands execute immediately and several panels switch simultaneously, but the connection occupies one Bluetooth proxy slot and the phone app cannot connect while Home Assistant is connected.\n\nDimension override: some panels report wrong dimensions over Bluetooth. Enable it and enter the physical size if the panel renders incorrectly.",
         "data": {
-          "keep_connected": "Keep connection open"
+          "keep_connected": "Keep connection open",
+          "override_dimensions": "Override panel dimensions",
+          "panel_width": "Panel width (pixels, 0 = firmware value)",
+          "panel_height": "Panel height (pixels, 0 = firmware value)"
         }
       }
     }
