@@ -66,14 +66,16 @@ Place `.ttf`/`.otf` font files in the `fonts/` folder within the integration dir
 
 ## Versioning
 
-This fork follows [Semantic Versioning](https://semver.org/) and counts
-**independently** of the upstream project: `cagcoach/ha-ipixel-color` and the
-merged forks never raised their version above `0.1.0`, so a version number of
-this fork does not correspond to an upstream release with the same number.
+This fork follows [Semantic Versioning](https://semver.org/) and continues the
+numbering of the upstream releases: it is based on
+[cagcoach/ha-ipixel-color `v0.2.0`](https://github.com/cagcoach/ha-ipixel-color/releases/tag/v0.2.0)
+(16 Dec 2025, the last upstream release; its `manifest.json` still says
+`0.1.0`), so this fork starts at `0.2.1`. Should upstream publish further
+releases, the same number here does not mean the same content — compare the
+[CHANGELOG](CHANGELOG.md).
 
-- `0.x`: features and changes in minor versions (`0.2.0`), fixes in patch
-  versions (`0.2.1`); breaking changes are possible in minor versions and are
-  listed in [CHANGELOG.md](CHANGELOG.md)
+- `0.x`: features and changes in minor versions, fixes in patch versions;
+  breaking changes are possible in minor versions and are listed in the CHANGELOG
 - `1.0.0` once the feature set is verified on real hardware
 
 Releases are tagged `vX.Y.Z` and published as GitHub releases, which HACS
