@@ -26,6 +26,7 @@ from .exceptions import iPIXELConnectionError
 _LOGGER = logging.getLogger(__name__)
 
 DEVICE_INFO_RETRY_AFTER = 300  # seconds
+UNSAFE_TEXT_ANIMATIONS = frozenset({3, 4})
 DEFAULT_DEVICE_INFO: dict[str, Any] = {
     "width": 64,
     "height": 16,
@@ -320,6 +321,18 @@ class iPIXELAPI:
             # Get device info for height
             device_info = await self.get_device_info()
             device_height = device_info["height"]
+
+            # Text animations 3 and 4 boot-loop panels that are not 32x32.
+            # pypixelcolor only checks this when it gets device_info, which
+            # is not passed here -> guard explicitly (unknown size = unsafe).
+            if int(animation) in UNSAFE_TEXT_ANIMATIONS and (
+                device_info.get("width"), device_info.get("height")
+            ) != (32, 32):
+                _LOGGER.error(
+                    "Text animation %s refused: boot-loops %sx%s panels, using 0",
+                    animation, device_info.get("width"), device_info.get("height"),
+                )
+                animation = 0
 
             # Generate text commands using pypixelcolor
             commands = make_text_command(
