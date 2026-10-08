@@ -552,8 +552,14 @@ class iPIXELFunModeSwitch(SwitchEntity, RestoreEntity):
         if last_state is not None:
             self._is_on = last_state.state == "on"
             _LOGGER.debug("Restored fun mode state: %s", self._is_on)
-        
-        await self._api.set_fun_mode(self._is_on)  # Ensure device state matches restored state
+
+        # Only push fun mode if it was ON. "Fun mode off" (= back to normal
+        # display mode) is the panel's default anyway, and sending it at
+        # startup powers the panel on as a side effect -- right after the
+        # power switch restored "off" (seen 2026-10-08: panels on after
+        # every HA restart while HA showed them off).
+        if self._is_on:
+            await self._api.set_fun_mode(True)
 
     @property
     def is_on(self) -> bool:

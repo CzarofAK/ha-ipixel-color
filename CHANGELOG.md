@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-10-08
+
+### Fixed
+- Panels switched on after every Home Assistant restart while HA showed them
+  off. Cause: the fun-mode switch sent "fun mode off" during restore, right
+  after the power switch had restored "off" -- and that command powers the
+  panel on. Fun mode is now only pushed at startup if it was on, and the
+  restored power state is re-applied last (3 s after platform setup), so no
+  startup command can leave the panel on against HA's state.
+
 ## [0.3.1] - 2026-10-08
 
 ### Added
