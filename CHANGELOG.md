@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-10-08
+
+### Added
+- Buttons **Release for App** and **Reconnect** per panel: with "keep
+  connected" HA holds the panel's single BLE link permanently, which locks
+  out the phone app. Release drops the link for 10 minutes; meanwhile HA
+  does not reconnect and commands fail instead of grabbing the link back.
+  When the time is up (or Reconnect is pressed) HA reconnects and
+  re-applies its desired power state. Switch attributes
+  `released_for_app` / `release_seconds_left` show the state.
+
 ## [0.3.0] - 2026-09-28
 
 Merge of the features of other forks onto the robust Bluetooth base of 0.2.1.

@@ -144,6 +144,24 @@ class iPIXELAPI:
     def is_present(self) -> bool:
         return self._bluetooth.is_present
 
+    # ---------------------------------------------------- release for app
+    @property
+    def is_released(self) -> bool:
+        """True while HA has handed the BLE link to the phone app."""
+        return self._bluetooth.is_released
+
+    @property
+    def released_seconds_left(self) -> int:
+        return self._bluetooth.released_seconds_left
+
+    async def release_for_app(self, seconds: float) -> None:
+        """Drop the BLE link so the phone app can connect for `seconds`."""
+        await self._bluetooth.release(seconds)
+
+    async def end_app_release(self) -> None:
+        """Take the link back now; re-applies HA's desired power state."""
+        await self._bluetooth.end_release()
+
     # -------------------------------------------------------------- power
     async def set_power(self, on: bool) -> bool:
         """Set device power state (reconnects + retries internally)."""
