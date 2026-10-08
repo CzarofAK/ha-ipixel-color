@@ -31,7 +31,62 @@ async def async_setup_entry(
     async_add_entities([
         iPIXELUpdateButton(hass, api, entry, address, name),
         iPIXELSyncTimeButton(hass, api, entry, address, name),
+        iPIXELReleaseForAppButton(api, address, name),
+        iPIXELReconnectButton(api, address, name),
     ])
+
+
+# How long "Release for App" hands the BLE link to the phone app before HA
+# takes it back (and re-applies its desired power state).
+APP_RELEASE_SECONDS = 10 * 60
+
+
+class _iPIXELLinkButton(ButtonEntity):
+    """Shared device info for the link-control buttons."""
+
+    def __init__(self, api: iPIXELAPI, address: str, name: str) -> None:
+        self._api = api
+        self._address = address
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, address)},
+            name=name,
+            manufacturer="iPIXEL",
+            model="LED Matrix Display",
+            sw_version="1.0",
+        )
+
+
+class iPIXELReleaseForAppButton(_iPIXELLinkButton):
+    """Drop the BLE link for a while so the phone app can connect.
+
+    The panel accepts only one BLE connection; with "keep connected" HA
+    holds it permanently. While released, HA does not reconnect and
+    commands fail instead of grabbing the link back.
+    """
+
+    _attr_icon = "mdi:cellphone-link"
+
+    def __init__(self, api: iPIXELAPI, address: str, name: str) -> None:
+        super().__init__(api, address, name)
+        self._attr_name = "Release for App"
+        self._attr_unique_id = f"{address}_release_for_app_button"
+
+    async def async_press(self) -> None:
+        await self._api.release_for_app(APP_RELEASE_SECONDS)
+
+
+class iPIXELReconnectButton(_iPIXELLinkButton):
+    """End an app release early and take the BLE link back."""
+
+    _attr_icon = "mdi:bluetooth-connect"
+
+    def __init__(self, api: iPIXELAPI, address: str, name: str) -> None:
+        super().__init__(api, address, name)
+        self._attr_name = "Reconnect"
+        self._attr_unique_id = f"{address}_reconnect_button"
+
+    async def async_press(self) -> None:
+        await self._api.end_app_release()
 
 
 class iPIXELUpdateButton(ButtonEntity):

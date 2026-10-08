@@ -105,6 +105,8 @@ class iPIXELSwitch(SwitchEntity, RestoreEntity):
         return {
             "connected": self._api.is_connected,
             "desired_power": self._api.desired_power,
+            "released_for_app": self._api.is_released,
+            "release_seconds_left": self._api.released_seconds_left,
         }
 
     async def _set(self, on: bool) -> None:

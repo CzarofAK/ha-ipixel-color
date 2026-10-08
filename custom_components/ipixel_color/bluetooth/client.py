@@ -28,7 +28,7 @@ from bleak_retry_connector import (
 
 from homeassistant.components import bluetooth
 from homeassistant.core import callback
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
 try:
     from pypixelcolor.lib.transport.send_plan import SendPlan, single_window_plan
@@ -91,6 +91,10 @@ class BluetoothClient:
         self.on_reconnected: Callable[[], Awaitable[None]] | None = None
         # sync hook, called whenever link state changes
         self.on_state_change: Callable[[], None] | None = None
+        # "release for app": HA drops the link and stays off it until this
+        # loop time, so the phone app can connect (panel takes ONE link)
+        self._released_until: float = 0.0
+        self._release_unsub: Callable[[], None] | None = None
 
     # ------------------------------------------------------------------ state
     @property
@@ -289,6 +293,10 @@ class BluetoothClient:
         """Disconnect and stop keepalive."""
         self._closing = True
         self.stop_keepalive()
+        if self._release_unsub:  # unload during an app release
+            self._release_unsub()
+            self._release_unsub = None
+        self._released_until = 0.0
         if self._reconnect_task:
             self._reconnect_task.cancel()
             self._reconnect_task = None
@@ -351,6 +359,9 @@ class BluetoothClient:
         """
         if SendPlan is None:
             raise ImportError("pypixelcolor library is not installed")
+        if self.is_released:
+            # do NOT grab the link back while the app is using it
+            raise iPIXELConnectionError("released for app, not connecting")
         async with self._lock:
             last_err: Exception | None = None
             for attempt in (1, 2):
@@ -396,6 +407,62 @@ class BluetoothClient:
         except iPIXELConnectionError as err:
             _LOGGER.error("%s: '%s' failed: %s", self._address, plan_id, err)
             return CommandResult(success=False, message=str(err))
+
+    # ------------------------------------------------------- release for app
+    @property
+    def is_released(self) -> bool:
+        return self._released_until > self._hass.loop.time()
+
+    @property
+    def released_seconds_left(self) -> int:
+        return max(0, int(self._released_until - self._hass.loop.time()))
+
+    async def release(self, seconds: float) -> None:
+        """Drop the link and stay off it for `seconds` (phone app access).
+
+        Keepalive callbacks stay registered but are blocked via `_closing`;
+        commands sent meanwhile fail instead of reconnecting. When the time
+        is up (or end_release() is called) the link is re-established and
+        on_reconnected re-applies HA's desired power state.
+        """
+        self._released_until = self._hass.loop.time() + seconds
+        self._closing = True
+        if self._reconnect_task:
+            self._reconnect_task.cancel()
+            self._reconnect_task = None
+        if self._release_unsub:
+            self._release_unsub()
+        self._release_unsub = async_call_later(
+            self._hass, seconds, self._release_timer_done
+        )
+        async with self._lock:
+            await self._force_drop()
+        _LOGGER.info("%s: released for app for %ds", self._address, int(seconds))
+        if self.on_state_change:
+            self.on_state_change()
+
+    @callback
+    def _release_timer_done(self, _now) -> None:  # noqa: ANN001
+        self._release_unsub = None
+        self._hass.async_create_background_task(
+            self.end_release(), f"ipixel_end_release_{self._address}"
+        )
+
+    async def end_release(self) -> None:
+        """Take the link back now (also called when the release expires)."""
+        if self._release_unsub:
+            self._release_unsub()
+            self._release_unsub = None
+        was_released = self._released_until > 0
+        self._released_until = 0.0
+        self._closing = False
+        if not was_released:
+            return
+        _LOGGER.info("%s: app release ended, reconnecting", self._address)
+        if self.on_state_change:
+            self.on_state_change()
+        self._backoff_idx = 0
+        self._schedule_reconnect(immediate=True)
 
     # ------------------------------------------------------------- keepalive
     def start_keepalive(self) -> None:
