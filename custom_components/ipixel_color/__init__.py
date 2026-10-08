@@ -13,7 +13,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
 from .api import iPIXELAPI, iPIXELConnectionError, iPIXELTimeoutError
 from .const import (
@@ -25,6 +25,9 @@ from .schedule import iPIXELScheduleManager, ScheduleItem
 from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
+
+# seconds after platform setup before the restored power state is re-applied
+STARTUP_POWER_DELAY = 3
 # Set pypixelcolor logging to current level for detailed command info
 logging.getLogger("pypixelcolor").setLevel(_LOGGER.getEffectiveLevel())
 
@@ -147,6 +150,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Re-apply the restored power state LAST, once every entity has run its
+    # own restore. Several panel commands (time sync, fun mode, display
+    # modes) power the panel on as a side effect; whatever ran during
+    # startup, the panel must end up matching the power switch in HA.
+    async def _final_power(_now=None) -> None:
+        await api.apply_desired_power()
+
+    entry.async_on_unload(
+        async_call_later(
+            hass,
+            STARTUP_POWER_DELAY,
+            lambda _now: hass.async_create_background_task(
+                _final_power(), f"ipixel_final_power_{address}"
+            ),
+        )
+    )
 
     # keep the BLE link open so commands execute immediately (optional:
     # occupies one proxy connection slot and blocks the phone app)
