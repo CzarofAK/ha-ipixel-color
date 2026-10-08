@@ -282,6 +282,9 @@ class BluetoothClient:
 
     async def connect(self, notification_handler: Callable | None = None) -> DeviceInfo:
         """Connect (idempotent, locked). Returns the cached DeviceInfo."""
+        if self.is_released:
+            # e.g. media_player calls connect() directly before sending
+            raise iPIXELConnectionError("released for app, not connecting")
         self._closing = False
         if notification_handler is not None:
             self.notification_handler = notification_handler
