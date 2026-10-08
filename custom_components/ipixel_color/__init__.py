@@ -155,17 +155,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # own restore. Several panel commands (time sync, fun mode, display
     # modes) power the panel on as a side effect; whatever ran during
     # startup, the panel must end up matching the power switch in HA.
+    # Pass the coroutine function itself: HA runs it in the event loop. (A
+    # plain lambda is not a @callback and gets run in an executor thread,
+    # where creating the task fails -- "Task was destroyed but it is
+    # pending", seen in 0.3.2.)
     async def _final_power(_now=None) -> None:
         await api.apply_desired_power()
 
     entry.async_on_unload(
-        async_call_later(
-            hass,
-            STARTUP_POWER_DELAY,
-            lambda _now: hass.async_create_background_task(
-                _final_power(), f"ipixel_final_power_{address}"
-            ),
-        )
+        async_call_later(hass, STARTUP_POWER_DELAY, _final_power)
     )
 
     # keep the BLE link open so commands execute immediately (optional:
