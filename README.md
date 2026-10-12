@@ -3,6 +3,12 @@
 A Home Assistant custom integration for iPIXEL Color LED matrix displays via Bluetooth.
 These displays have been recently available as B.K. Light LED Pixel Board from Action and thus get increasing popularity.
 
+> [!WARNING]
+> **Safety & liability / Sicherheit & Haftung** – Private hobby fork, provided "as is" and used **at your own risk**.
+> This is a personal fork of [cagcoach/ha-ipixel-color](https://github.com/cagcoach/ha-ipixel-color). The disclaimer covers the changes made in this fork; it does not replace the upstream license.
+> Controls Bluetooth LED panels from Home Assistant. Not affiliated with or endorsed by the manufacturers of iPixel / BGLight devices.
+> See [DISCLAIMER.md](DISCLAIMER.md) (EN/DE).
+
 > **About this fork** — based on [cagcoach/ha-ipixel-color](https://github.com/cagcoach/ha-ipixel-color),
 > with a robust Bluetooth layer (keepalive, reconnect, per-panel lock, reliable power state,
 > several panels switching together) and the features of other forks merged in:
@@ -296,7 +302,7 @@ Special thanks to the authors of [pypixelcolor](https://github.com/lucagoc/pypix
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the LICENSE file for details.
+GPL-3.0 (unchanged from upstream) – see the LICENSE file. Use at your own risk – see [DISCLAIMER.md](DISCLAIMER.md).
 
 ## Debugging and Logs
 
